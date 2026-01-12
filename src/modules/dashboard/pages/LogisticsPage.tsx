@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { 
   Search, MapPin, ArrowRightLeft, CheckCircle2, X, 
   PackageCheck, Truck, Barcode, ArrowUpRight, ArrowDownLeft,
-  AlertTriangle, FileText, Activity
+  AlertTriangle, FileText, Activity, Check, Ban, AlertCircle
 } from 'lucide-react';
 
 interface NetworkUnit {
@@ -21,7 +21,7 @@ const MOCK_NETWORK: NetworkUnit[] = [
 interface TransferOrder {
   id: string;
   type: 'incoming' | 'outgoing';
-  status: 'pending' | 'approved' | 'in_transit' | 'completed';
+  status: 'pending' | 'approved' | 'rejected' | 'in_transit' | 'completed';
   unitName: string;
   items: string;
   date: string;
@@ -29,7 +29,7 @@ interface TransferOrder {
   priority: 'normal' | 'high' | 'critical';
 }
 
-const MOCK_ORDERS: TransferOrder[] = [
+const INITIAL_ORDERS: TransferOrder[] = [
   { id: 'REQ-001', type: 'outgoing', status: 'pending', unitName: 'Agência Porto Seguro', items: '3x A+', date: 'Hoje, 10:30', reason: 'Estoque Baixo', priority: 'normal' },
   { id: 'REQ-002', type: 'incoming', status: 'in_transit', unitName: 'Hospital Regional', items: '5x O-', date: 'Ontem, 16:00', reason: 'Transfusão Urgente', priority: 'critical' },
   { id: 'REQ-003', type: 'outgoing', status: 'approved', unitName: 'Hemonúcleo Eunápolis', items: '2x AB-', date: 'Hoje, 08:15', reason: 'Cirurgia Eletiva', priority: 'high' },
@@ -37,38 +37,32 @@ const MOCK_ORDERS: TransferOrder[] = [
 
 export function LogisticsPage() {
   const [activeTab, setActiveTab] = useState<'network' | 'outgoing' | 'incoming'>('network');
+  const [orders, setOrders] = useState<TransferOrder[]>(INITIAL_ORDERS);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUnit, setSelectedUnit] = useState<NetworkUnit | null>(null);
-  
-  const [requestData, setRequestData] = useState({ 
-    type: '', 
-    quantity: 1,
-    reason: 'estoque_baixo',
-    message: ''
-  });
+  const [requestData, setRequestData] = useState({ type: '', quantity: 1, reason: 'estoque_baixo', message: '' });
 
   const [scanCode, setScanCode] = useState('');
   const [scannedItems, setScannedItems] = useState<string[]>([]);
   const [processingOrder, setProcessingOrder] = useState<TransferOrder | null>(null);
+  
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [orderToReject, setOrderToReject] = useState<TransferOrder | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
   
   const scanInputRef = useRef<HTMLInputElement>(null);
 
   const handleOpenRequestModal = (unit: NetworkUnit) => {
     setSelectedUnit(unit);
     const firstType = Object.keys(unit.stock)[0];
-    setRequestData({
-      type: firstType,
-      quantity: 1,
-      reason: 'estoque_baixo',
-      message: ''
-    });
+    setRequestData({ type: firstType, quantity: 1, reason: 'estoque_baixo', message: '' });
   };
 
   const handleSendRequest = () => {
-    setSuccessMessage('Solicitação enviada! A unidade de origem analisará o motivo e a urgência.');
+    setSuccessMessage('Solicitação enviada! Aguarde a aprovação da unidade de origem.');
     setShowSuccess(true);
     setTimeout(() => {
       setShowSuccess(false);
@@ -76,24 +70,51 @@ export function LogisticsPage() {
     }, 2500);
   };
 
+  const handleApproveOrder = (orderId: string) => {
+    setOrders(orders.map(o => o.id === orderId ? { ...o, status: 'approved' } : o));
+    setSuccessMessage('Pedido Aprovado! Disponível para expedição.');
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 2000);
+  };
+
+  const openRejectModal = (order: TransferOrder) => {
+    setOrderToReject(order);
+    setRejectionReason('');
+    setRejectModalOpen(true);
+  };
+
+  const confirmRejection = () => {
+    if (!orderToReject) return;
+    setOrders(orders.map(o => o.id === orderToReject.id ? { ...o, status: 'rejected' } : o));
+    setRejectModalOpen(false);
+    setOrderToReject(null);
+    setSuccessMessage('Pedido Recusado e removido da fila.');
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 2000);
+  };
+
   const handleScan = (e: React.FormEvent) => {
     e.preventDefault();
     if (!scanCode) return;
-    
     if (scannedItems.includes(scanCode.toUpperCase())) {
       alert('Esta bolsa já foi bipada.');
       setScanCode('');
       return;
     }
-
     setScannedItems([...scannedItems, scanCode.toUpperCase()]);
     setScanCode('');
     scanInputRef.current?.focus();
   };
 
   const finishOperation = () => {
-    setSuccessMessage(activeTab === 'outgoing' ? 'Expedição concluída e estoque baixado.' : 'Entrada confirmada no estoque.');
+    setSuccessMessage(activeTab === 'outgoing' ? 'Expedição concluída! Itens em trânsito.' : 'Recebimento confirmado! Estoque atualizado.');
     setShowSuccess(true);
+    
+    if (processingOrder) {
+      const newStatus = activeTab === 'outgoing' ? 'in_transit' : 'completed';
+      setOrders(orders.map(o => o.id === processingOrder.id ? { ...o, status: newStatus } : o));
+    }
+
     setTimeout(() => {
       setShowSuccess(false);
       setScannedItems([]);
@@ -120,7 +141,7 @@ export function LogisticsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Central de Logística Integrada</h1>
-          <p className="text-slate-500 text-sm">Gerencie solicitações, expedição e recebimento de bolsas em um só lugar.</p>
+          <p className="text-slate-500 text-sm">Gerencie solicitações, expedição e recebimento de bolsas.</p>
         </div>
       </div>
 
@@ -132,13 +153,13 @@ export function LogisticsPage() {
           <MapPin size={18} /> Rede & Solicitações
         </button>
         <button 
-          onClick={() => setActiveTab('outgoing')}
+          onClick={() => { setActiveTab('outgoing'); setProcessingOrder(null); }}
           className={`px-6 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${activeTab === 'outgoing' ? 'border-brand-red text-brand-red' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
         >
           <ArrowUpRight size={18} /> Expedição (Enviar)
         </button>
         <button 
-          onClick={() => setActiveTab('incoming')}
+          onClick={() => { setActiveTab('incoming'); setProcessingOrder(null); }}
           className={`px-6 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${activeTab === 'incoming' ? 'border-brand-red text-brand-red' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
         >
           <ArrowDownLeft size={18} /> Recebimento (Entrada)
@@ -147,7 +168,6 @@ export function LogisticsPage() {
 
       {activeTab === 'network' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
-          
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
                <div className="relative">
@@ -200,7 +220,7 @@ export function LogisticsPage() {
               Minhas Solicitações
             </h2>
             <div className="space-y-4">
-              {MOCK_ORDERS.filter(o => o.type === 'incoming').map(order => (
+              {orders.filter(o => o.type === 'incoming' && o.status !== 'completed').map(order => (
                 <div key={order.id} className="p-3 bg-gray-50 rounded-xl border border-gray-100 relative overflow-hidden">
                   <div className={`absolute top-0 left-0 w-1 h-full ${order.priority === 'critical' ? 'bg-red-500' : order.priority === 'high' ? 'bg-amber-500' : 'bg-blue-500'}`}></div>
                   <div className="pl-3">
@@ -231,17 +251,16 @@ export function LogisticsPage() {
           
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 h-fit">
             <h2 className="font-bold text-slate-800 mb-4">
-              {activeTab === 'outgoing' ? 'Pedidos para Enviar' : 'Cargas para Receber'}
+              {activeTab === 'outgoing' ? 'Solicitações Recebidas' : 'Cargas para Receber'}
             </h2>
             <div className="space-y-3">
-              {MOCK_ORDERS.filter(o => o.type === activeTab).map(order => (
-                <button 
+              {orders.filter(o => o.type === activeTab && o.status !== 'rejected' && o.status !== 'completed').map(order => (
+                <div 
                   key={order.id}
-                  onClick={() => { setProcessingOrder(order); setScannedItems([]); }}
                   className={`w-full text-left p-4 rounded-xl border transition-all relative overflow-hidden ${
                     processingOrder?.id === order.id 
                       ? 'bg-slate-800 text-white border-slate-800 shadow-md' 
-                      : 'bg-white border-gray-200 hover:border-brand-red hover:shadow-sm'
+                      : 'bg-white border-gray-200 hover:shadow-sm'
                   }`}
                 >
                   <div className={`absolute top-0 right-0 px-2 py-1 text-[10px] font-bold rounded-bl-lg ${
@@ -252,7 +271,9 @@ export function LogisticsPage() {
 
                   <div className="flex justify-between items-center mb-1 mt-2">
                     <span className={`text-xs font-bold ${processingOrder?.id === order.id ? 'text-slate-300' : 'text-slate-500'}`}>{order.id}</span>
+                    {order.status === 'approved' && <span className="text-[10px] bg-emerald-500 text-white px-2 rounded-full">APROVADO</span>}
                   </div>
+                  
                   <p className={`font-bold text-lg ${processingOrder?.id === order.id ? 'text-white' : 'text-slate-800'}`}>{order.items}</p>
                   <p className={`text-xs mt-1 ${processingOrder?.id === order.id ? 'text-slate-300' : 'text-slate-500'}`}>
                     {activeTab === 'outgoing' ? `Destino: ${order.unitName}` : `Origem: ${order.unitName}`}
@@ -264,7 +285,37 @@ export function LogisticsPage() {
                       {order.reason}
                     </span>
                   </div>
-                </button>
+
+                  {activeTab === 'outgoing' && order.status === 'pending' && (
+                    <div className="flex gap-2 mt-4">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleApproveOrder(order.id); }}
+                        className="flex-1 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-bold hover:bg-emerald-100 flex items-center justify-center gap-1"
+                      >
+                        <Check size={14} /> Aprovar
+                      </button>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); openRejectModal(order); }}
+                        className="flex-1 py-2 bg-red-50 text-red-700 rounded-lg text-xs font-bold hover:bg-red-100 flex items-center justify-center gap-1"
+                      >
+                        <Ban size={14} /> Recusar
+                      </button>
+                    </div>
+                  )}
+
+                  {((activeTab === 'outgoing' && order.status === 'approved') || (activeTab === 'incoming' && order.status === 'in_transit')) && (
+                    <button 
+                      onClick={() => { setProcessingOrder(order); setScannedItems([]); }}
+                      className={`w-full mt-4 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 ${
+                        processingOrder?.id === order.id 
+                          ? 'bg-slate-700 text-white cursor-default'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      {activeTab === 'outgoing' ? 'Iniciar Expedição' : 'Conferir Recebimento'} <ArrowUpRight size={14} />
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           </div>
@@ -273,7 +324,7 @@ export function LogisticsPage() {
             {!processingOrder ? (
               <div className="h-full min-h-[400px] flex flex-col items-center justify-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 text-slate-400">
                 <Truck size={48} className="mb-4 opacity-20" />
-                <p>Selecione um pedido ao lado para iniciar a {activeTab === 'outgoing' ? 'expedição' : 'conferência'}.</p>
+                <p>Selecione um pedido aprovado ao lado para iniciar a {activeTab === 'outgoing' ? 'expedição' : 'conferência'}.</p>
               </div>
             ) : (
               <>
@@ -353,24 +404,19 @@ export function LogisticsPage() {
         </div>
       )}
 
+
       {selectedUnit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-scale-up">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-scale-up">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-slate-800">Nova Solicitação</h3>
+              <h3 className="text-lg font-bold text-slate-800">Nova Solicitação</h3>
               <button onClick={() => setSelectedUnit(null)}><X size={20} className="text-slate-400" /></button>
             </div>
 
             <div className="space-y-4">
-              <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 flex justify-between items-center">
-                <div>
-                  <p className="text-xs text-blue-600 uppercase font-bold">Unidade Cedente</p>
-                  <p className="font-bold text-slate-800">{selectedUnit.name}</p>
-                </div>
-                <div className="text-right">
-                   <p className="text-xs text-blue-600 uppercase font-bold">Distância</p>
-                   <p className="font-bold text-slate-800">{selectedUnit.distance}</p>
-                </div>
+              <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
+                <p className="text-xs text-blue-600 uppercase font-bold">Unidade Cedente</p>
+                <p className="font-bold text-slate-800">{selectedUnit.name}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -438,6 +484,43 @@ export function LogisticsPage() {
                   <Truck size={18} /> Confirmar Solicitação
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {rejectModalOpen && orderToReject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-scale-up border-2 border-red-100">
+            <h3 className="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2">
+              <AlertCircle className="text-red-600" /> Recusar Solicitação
+            </h3>
+            <p className="text-sm text-slate-500 mb-4">
+              Informe o motivo da recusa para a unidade solicitante ({orderToReject.unitName}).
+            </p>
+            
+            <textarea 
+              className="w-full p-3 bg-red-50 border border-red-200 rounded-xl outline-none focus:border-red-500 resize-none h-32 mb-4 text-red-900 placeholder:text-red-300"
+              placeholder="Ex: Estoque indisponível no momento..."
+              value={rejectionReason}
+              onChange={e => setRejectionReason(e.target.value)}
+              autoFocus
+            />
+
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setRejectModalOpen(false)}
+                className="flex-1 py-2 bg-gray-100 text-slate-600 rounded-lg font-bold hover:bg-gray-200"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={confirmRejection}
+                disabled={!rejectionReason}
+                className="flex-1 py-2 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 disabled:opacity-50"
+              >
+                Confirmar Recusa
+              </button>
             </div>
           </div>
         </div>
