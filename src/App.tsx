@@ -11,18 +11,12 @@ import { HospitalExitPage } from './modules/dashboard/pages/HospitalExitPage';
 import { DonorsListPage } from './modules/dashboard/pages/DonorsListPage';
 import { DonorFormPage } from './modules/dashboard/pages/DonorFormPage';
 import { TriagePage } from './modules/dashboard/pages/TriagePage';
-import { DistributionPage } from './modules/dashboard/pages/DistributionPage';
+import { LogisticsPage } from './modules/dashboard/pages/LogisticsPage'; // Página Unificada
 import { CommunicationPage } from './modules/dashboard/pages/CommunicationPage';
 import { AdminUsersPage } from './modules/dashboard/pages/AdminUsersPage';
-import { AdminAuditPage } from './modules/dashboard/pages/AdminAuditPage'; // Novo
+import { AdminAuditPage } from './modules/dashboard/pages/AdminAuditPage';
 import { UserProfilePage } from './modules/dashboard/pages/UserProfilePage';
-
-const PlaceholderPage = ({ title }: { title: string }) => (
-  <div className="p-8 text-center text-gray-400 bg-white rounded-2xl border border-dashed border-gray-300 m-4">
-    <h2 className="text-xl font-bold mb-2">Módulo em Desenvolvimento</h2>
-    <p>A tela de {title} será implementada em breve.</p>
-  </div>
-);
+import { NotFoundPage } from './modules/common/pages/NotFoundPage';
 
 function App() {
   return (
@@ -30,34 +24,41 @@ function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         
+        {/* Rotas de Autenticação */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         
+        {/* Layout Principal do Dashboard */}
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<DashboardHome />} />
           
           <Route path="perfil" element={<UserProfilePage />} />
 
+          {/* Módulo de Doadores */}
           <Route path="doadores" element={<DonorsListPage />} />
           <Route path="doadores/novo" element={<DonorFormPage />} />
           <Route path="doadores/editar/:id" element={<DonorFormPage />} />
           
           <Route path="triagem" element={<TriagePage />} />
           
+          {/* Módulo Técnico */}
           <Route path="coleta" element={<CollectionPage />} />
           <Route path="laboratorio" element={<LabPage />} />
           <Route path="estoque" element={<StockPage />} />
           
-          <Route path="logistica" element={<DistributionPage />} />
+          {/* Módulo de Logística (Unificado) */}
+          <Route path="logistica" element={<LogisticsPage />} />
           <Route path="saida-hospitalar" element={<HospitalExitPage />} />
           
+          {/* Módulo de Gestão */}
           <Route path="comunicacao" element={<CommunicationPage />} />
           <Route path="admin" element={<AdminUsersPage />} />
-          <Route path="admin/auditoria" element={<AdminAuditPage />} /> {/* Nova Rota */}
+          <Route path="admin/auditoria" element={<AdminAuditPage />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        {/* Rota de Erro 404 */}
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   );

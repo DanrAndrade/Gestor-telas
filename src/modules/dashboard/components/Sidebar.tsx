@@ -72,7 +72,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             Logística
           </div>
           <div onClick={() => window.innerWidth < 1024 && onClose()}>
-             <SidebarItem icon={Truck} label="Rede de Distribuição" to="/dashboard/logistica" />
+             {/* Link Unificado para a nova página LogisticsPage */}
+             <SidebarItem icon={Truck} label="Central de Logística" to="/dashboard/logistica" />
              <SidebarItem icon={LogOutIcon} label="Saída Hospitalar" to="/dashboard/saida-hospitalar" />
           </div>
           
