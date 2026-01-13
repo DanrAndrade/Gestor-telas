@@ -11,7 +11,8 @@ import {
   X,
   Syringe,
   LogOut as LogOutIcon,
-  FileText
+  FileText,
+  Sliders
 } from 'lucide-react';
 import { SidebarItem } from './SidebarItem';
 
@@ -55,7 +56,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             Geral
           </div>
           <div onClick={() => window.innerWidth < 1024 && onClose()}>
-            <SidebarItem icon={LayoutDashboard} label="Dashboard" to="/dashboard" />
+            <SidebarItem icon={LayoutDashboard} label="Dashboard" to="/dashboard" exact={true} />
             <SidebarItem icon={Users} label="Doadores" to="/dashboard/doadores" />
           </div>
 
@@ -72,7 +73,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             Logística
           </div>
           <div onClick={() => window.innerWidth < 1024 && onClose()}>
-             {/* Link Unificado para a nova página LogisticsPage */}
              <SidebarItem icon={Truck} label="Central de Logística" to="/dashboard/logistica" />
              <SidebarItem icon={LogOutIcon} label="Saída Hospitalar" to="/dashboard/saida-hospitalar" />
           </div>
@@ -82,7 +82,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
           <div onClick={() => window.innerWidth < 1024 && onClose()}>
             <SidebarItem icon={MessageSquare} label="Comunicação" to="/dashboard/comunicacao" />
-            <SidebarItem icon={Settings} label="Administrativo" to="/dashboard/admin" />
+            <SidebarItem icon={Settings} label="Administrativo" to="/dashboard/admin" exact={true} />
+            <SidebarItem icon={Sliders} label="Configuração de Estoque" to="/dashboard/admin/configuracao" />
             <SidebarItem icon={FileText} label="Auditoria & Logs" to="/dashboard/admin/auditoria" />
           </div>
         </div>

@@ -1,60 +1,78 @@
-import { useState, useEffect } from 'react';
-import { Search, Syringe, Clock, User, FileText, Printer, CheckCircle2, Info, AlertCircle } from 'lucide-react';
+import { useState } from 'react';
+import { User, Clock, CheckCircle2, AlertTriangle, Syringe, Printer, X, FileWarning } from 'lucide-react';
 
-interface Donor {
+interface DonorInQueue {
   id: string;
   name: string;
+  bloodType: string;
   triageTime: string;
-  status: 'aguardando';
+  weight: number;
 }
 
-const WAITING_LIST: Donor[] = [
-  { id: '1', name: 'Carlos Eduardo Silva', triageTime: '08:15', status: 'aguardando' },
-  { id: '2', name: 'Ana Beatriz Souza', triageTime: '08:30', status: 'aguardando' },
-  { id: '3', name: 'Jorge Amado Filho', triageTime: '08:45', status: 'aguardando' },
-  { id: '4', name: 'Mariana Ximenes', triageTime: '09:00', status: 'aguardando' },
+const MOCK_QUEUE: DonorInQueue[] = [
+  { id: '1', name: 'João Silva', bloodType: 'O+', triageTime: '10:15', weight: 75 },
+  { id: '2', name: 'Maria Oliveira', bloodType: 'A-', triageTime: '10:30', weight: 62 },
+  { id: '3', name: 'Pedro Santos', bloodType: 'Unknown', triageTime: '10:45', weight: 80 },
 ];
 
 export function CollectionPage() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDonor, setSelectedDonor] = useState<Donor | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [currentDateTime, setCurrentDateTime] = useState('');
-
-  const [formData, setFormData] = useState({
-    componentType: 'Sangue Total',
-    volume: '450',
+  const [queue, setQueue] = useState<DonorInQueue[]>(MOCK_QUEUE);
+  const [selectedDonor, setSelectedDonor] = useState<DonorInQueue | null>(null);
+  
+  // Estados do Formulário de Coleta
+  const [collectionData, setCollectionData] = useState({
+    bagType: 'Sangue Total',
+    volume: 450, // Valor padrão ideal
+    lotNumber: ''
   });
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const now = new Date();
-      setCurrentDateTime(now.toLocaleString('pt-BR'));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+  // Estados de Intercorrência
+  const [showIssueModal, setShowIssueModal] = useState(false);
+  const [issueData, setIssueData] = useState({ type: '', observation: '' });
 
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseInt(e.target.value);
-    if (val > 450) {
-      setFormData({ ...formData, volume: '450' });
-    } else {
-      setFormData({ ...formData, volume: e.target.value });
-    }
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+
+  const handleSelectDonor = (donor: DonorInQueue) => {
+    setSelectedDonor(donor);
+    setCollectionData({ bagType: 'Sangue Total', volume: 450, lotNumber: `L-${Math.floor(Math.random() * 10000)}` });
   };
 
-  const filteredList = WAITING_LIST.filter(d => d.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const handleSuccess = () => {
+    // Validação Rígida de Volume
+    if (collectionData.volume <= 0) {
+      alert('Informe um volume válido.');
+      return;
+    }
 
-  const handleCollect = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+    if (collectionData.volume > 450) {
+      alert('O volume máximo permitido por bolsa é 450ml. Verifique o valor digitado.');
+      return;
+    }
 
+    setIsProcessing(true);
     setTimeout(() => {
-      alert(`Coleta Confirmada!\n\nPaciente: ${selectedDonor?.name}\nVolume: ${formData.volume}ml\nTipo: ${formData.componentType}\n\n>> Enviando comando para impressora de etiqueta...`);
-      setIsSubmitting(false);
+      setSuccessMessage(`Coleta realizada com sucesso!\nVolume: ${collectionData.volume}ml\nEtiqueta gerada para ${selectedDonor?.name}.`);
+      setQueue(queue.filter(d => d.id !== selectedDonor?.id));
       setSelectedDonor(null);
-      setFormData({ componentType: 'Sangue Total', volume: '450' });
-    }, 1000);
+      setIsProcessing(false);
+      setTimeout(() => setSuccessMessage(''), 3000);
+    }, 1500);
+  };
+
+  const handleIssue = () => {
+    if (!issueData.type) return;
+    setIsProcessing(true);
+    setShowIssueModal(false);
+    
+    setTimeout(() => {
+      setSuccessMessage(`Intercorrência registrada: ${issueData.type}.\nDoador marcado para acompanhamento médico.`);
+      setQueue(queue.filter(d => d.id !== selectedDonor?.id));
+      setSelectedDonor(null);
+      setIssueData({ type: '', observation: '' });
+      setIsProcessing(false);
+      setTimeout(() => setSuccessMessage(''), 3000);
+    }, 1500);
   };
 
   return (
@@ -63,164 +81,208 @@ export function CollectionPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Sala de Coleta</h1>
-          <p className="text-slate-500 text-sm">Registro de bolsas e geração de etiqueta de coleta.</p>
+          <p className="text-slate-500 text-sm">Registro de bolsas coletadas e intercorrências.</p>
         </div>
-        
-        <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-xl text-sm font-medium border border-blue-100">
-          <Clock size={18} />
-          <span>Fila: <strong>{filteredList.length} aguardando</strong></span>
+        <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm border border-blue-100 font-medium">
+          <Clock size={16} />
+          <span>Fila de Espera: <strong>{queue.length} doadores</strong></span>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        <div className="lg:col-span-2 bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[600px]">
-          <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+        {/* LISTA DE ESPERA */}
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden h-fit">
+          <div className="p-4 border-b border-gray-100 bg-gray-50/50">
             <h2 className="font-bold text-slate-700 flex items-center gap-2">
-              <User size={18} className="text-brand-red" />
-              Fila de Espera
+              <User size={18} /> Aguardando Coleta
             </h2>
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-              <input 
-                type="text" 
-                placeholder="Buscar paciente..." 
-                className="w-full pl-9 pr-4 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:border-brand-red focus:ring-2 focus:ring-brand-red/10 outline-none"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-              />
-            </div>
           </div>
-
-          <div className="overflow-y-auto flex-1 p-4 space-y-3">
-            {filteredList.map(donor => (
-              <div 
-                key={donor.id}
-                onClick={() => setSelectedDonor(donor)}
-                className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between group ${
-                  selectedDonor?.id === donor.id 
-                    ? 'border-brand-red bg-red-50 ring-1 ring-brand-red' 
-                    : 'border-gray-100 hover:border-gray-300 hover:shadow-md bg-white'
-                }`}
-              >
-                <div>
-                  <h3 className="font-bold text-slate-800 group-hover:text-brand-red transition-colors text-base">{donor.name}</h3>
-                  <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
-                    <span className="flex items-center gap-1">
-                      <CheckCircle2 size={12} className="text-emerald-500" />
-                      Triagem Aprovada: {donor.triageTime}
-                    </span>
+          <div className="divide-y divide-gray-100 max-h-[500px] overflow-y-auto">
+            {queue.length === 0 ? (
+               <div className="p-8 text-center text-slate-400 text-sm">Ninguém na fila.</div>
+            ) : (
+              queue.map(donor => (
+                <button 
+                  key={donor.id}
+                  onClick={() => handleSelectDonor(donor)}
+                  className={`w-full text-left p-4 hover:bg-gray-50 transition-colors flex justify-between items-center ${selectedDonor?.id === donor.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''}`}
+                >
+                  <div>
+                    <p className="font-bold text-slate-800">{donor.name}</p>
+                    <p className="text-xs text-slate-500">Triagem: {donor.triageTime} • {donor.weight}kg</p>
                   </div>
-                </div>
-                <button className={`p-2 rounded-lg transition-colors ${
-                   selectedDonor?.id === donor.id ? 'text-brand-red bg-white' : 'text-gray-300'
-                }`}>
-                  <Syringe size={20} />
+                  {donor.bloodType !== 'Unknown' && (
+                    <span className="bg-slate-100 text-slate-600 font-bold px-2 py-1 rounded text-xs">{donor.bloodType}</span>
+                  )}
                 </button>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm h-fit">
-          <div className="p-4 border-b border-gray-100 bg-gray-50/50">
-            <h2 className="font-bold text-slate-700 flex items-center gap-2">
-              <FileText size={18} className="text-brand-red" />
-              Registro de Coleta
-            </h2>
-          </div>
-
-          {selectedDonor ? (
-            <form onSubmit={handleCollect} className="p-6 space-y-6">
-              
-              <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl mb-6">
-                <p className="text-xs text-slate-500 font-bold uppercase mb-1">Doador em Atendimento</p>
-                <p className="font-bold text-slate-800 text-lg">{selectedDonor.name}</p>
-                <p className="text-xs text-slate-400 mt-1">ID Sistema: {selectedDonor.id.padStart(6, '0')}</p>
+        {/* ÁREA DE REGISTRO */}
+        <div className="lg:col-span-2">
+          {!selectedDonor ? (
+            <div className="bg-white border-2 border-dashed border-gray-300 rounded-2xl h-[400px] flex flex-col items-center justify-center text-slate-400">
+              <Syringe size={48} className="mb-4 opacity-20" />
+              <p>Selecione um doador na fila para iniciar a punção.</p>
+            </div>
+          ) : (
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-8 animate-fade-in">
+              <div className="flex justify-between items-start mb-6 pb-6 border-b border-gray-100">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800 mb-1">Registro de Coleta</h2>
+                  <p className="text-slate-500">Doador: <strong className="text-slate-800">{selectedDonor.name}</strong></p>
+                </div>
+                <div className="text-right">
+                   <p className="text-xs text-slate-400 uppercase font-bold">Lote Gerado</p>
+                   <p className="font-mono text-lg font-bold text-slate-700">{collectionData.lotNumber}</p>
+                </div>
               </div>
 
-              <div className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="block text-sm font-bold text-slate-700">Tipo de Coleta</label>
-                    <div className="group relative">
-                      <Info size={14} className="text-slate-400 cursor-help" />
-                      <div className="absolute right-0 top-6 w-48 p-2 bg-slate-800 text-white text-xs rounded shadow-xl hidden group-hover:block z-50">
-                        "Sangue Total" é a doação padrão. Selecione Plasma/Plaquetas apenas para procedimentos de Aférese.
-                      </div>
-                    </div>
-                  </div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Tipo de Bolsa</label>
                   <select 
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:border-brand-red focus:ring-2 focus:ring-brand-red/10 outline-none transition-all"
-                    value={formData.componentType}
-                    onChange={e => setFormData({...formData, componentType: e.target.value})}
+                    className="w-full p-3 bg-white border border-gray-200 rounded-xl outline-none focus:border-brand-red"
+                    value={collectionData.bagType}
+                    onChange={e => setCollectionData({...collectionData, bagType: e.target.value})}
                   >
-                    <option value="Sangue Total">Sangue Total (Padrão)</option>
-                    <option value="Plasma">Aférese - Plasma</option>
-                    <option value="Plaquetas">Aférese - Plaquetas</option>
+                    <option>Sangue Total</option>
+                    <option>Aférese (Plaquetas)</option>
+                    <option>Aférese (Plasma)</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">Volume Coletado</label>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Volume Coletado</label>
                   <div className="relative">
-                    <input 
-                      type="number" 
-                      max="450"
-                      className="w-full pl-4 pr-10 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:border-brand-red focus:ring-2 focus:ring-brand-red/10 outline-none transition-all font-mono"
-                      value={formData.volume}
-                      onChange={handleVolumeChange}
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">ml</span>
+                     <input 
+                        type="number" 
+                        min="300" 
+                        max="450" 
+                        className="w-full p-3 bg-white border border-gray-200 rounded-xl outline-none focus:border-brand-red font-mono font-bold text-slate-700 pr-10"
+                        placeholder="Máx: 450"
+                        value={collectionData.volume}
+                        onChange={e => {
+                          const val = Number(e.target.value);
+                          // Impede digitar mais que 450 visualmente se desejar, ou deixa validar no submit
+                          setCollectionData({...collectionData, volume: val});
+                        }}
+                     />
+                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">ml</span>
                   </div>
-                  <div className="flex items-center gap-1 mt-1.5 text-xs text-amber-600">
-                    <AlertCircle size={12} />
-                    <span>Máximo permitido: 450ml (+/- 45ml bolsa satélite)</span>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">Data/Hora do Registro</label>
-                  <div className="px-4 py-3 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-600 font-mono flex items-center gap-2 cursor-not-allowed">
-                     <Clock size={16} />
-                     {currentDateTime || 'Carregando...'}
-                  </div>
-                  <p className="text-[10px] text-gray-400 mt-1 ml-1">* Preenchimento automático pelo sistema</p>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-gray-100">
-                <button 
-                  type="submit" 
-                  disabled={isSubmitting}
-                  className="w-full py-4 bg-brand-red hover:bg-red-700 text-white rounded-xl font-bold text-base flex items-center justify-center gap-2 transition-all disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-brand-red/20"
-                >
-                  {isSubmitting ? (
-                    'Gerando Registro...'
-                  ) : (
-                    <>
-                      <Printer size={20} />
-                      Confirmar Coleta
-                    </>
+                  {collectionData.volume > 450 && (
+                    <p className="text-xs text-red-500 mt-1 font-bold">Volume excede o limite de 450ml.</p>
                   )}
-                </button>
-                <p className="text-center text-xs text-gray-400 mt-3">
-                  Ao confirmar, a etiqueta de coleta será impressa automaticamente.
-                </p>
+                </div>
               </div>
 
-            </form>
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center p-8 text-center min-h-[400px]">
-              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
-                <Syringe size={32} className="text-gray-300" />
+              <div className="flex gap-3 pt-4 border-t border-gray-100">
+                <button 
+                  onClick={() => setShowIssueModal(true)}
+                  className="px-4 py-3 bg-red-50 text-red-700 font-bold rounded-xl hover:bg-red-100 border border-red-100 flex items-center gap-2 transition-colors"
+                >
+                  <AlertTriangle size={18} />
+                  Registrar Intercorrência
+                </button>
+                
+                <div className="flex-1 flex gap-2 justify-end">
+                   <button 
+                      className="px-4 py-3 bg-white text-slate-600 font-bold rounded-xl border border-gray-200 hover:bg-gray-50 flex items-center gap-2 transition-colors"
+                      title="Reimprimir Etiqueta em caso de falha"
+                      onClick={() => alert('Comando de reimpressão enviado para a impressora térmica.')}
+                   >
+                      <Printer size={18} />
+                   </button>
+
+                   <button 
+                      onClick={handleSuccess}
+                      disabled={isProcessing || collectionData.volume <= 0 || collectionData.volume > 450}
+                      className="px-8 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-200 flex items-center gap-2 transition-all disabled:opacity-50"
+                   >
+                      {isProcessing ? 'Processando...' : (
+                        <>
+                          <CheckCircle2 size={18} /> Confirmar Coleta
+                        </>
+                      )}
+                   </button>
+                </div>
               </div>
-              <h3 className="font-bold text-slate-700 mb-2">Aguardando Seleção</h3>
-              <p className="text-sm text-slate-400 max-w-[200px]">Selecione um doador na fila para iniciar o registro da bolsa.</p>
             </div>
           )}
         </div>
       </div>
+
+      {/* Modal de Intercorrência */}
+      {showIssueModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-scale-up border-2 border-red-100">
+             <div className="flex justify-between items-center mb-6">
+                <h3 className="font-bold text-red-800 flex items-center gap-2">
+                   <FileWarning /> Intercorrência / Reação Adversa
+                </h3>
+                <button onClick={() => setShowIssueModal(false)}><X size={20} className="text-slate-400" /></button>
+             </div>
+
+             <div className="space-y-4">
+                <p className="text-sm text-slate-500">
+                  O processo de coleta foi interrompido? Registre o motivo abaixo para o histórico clínico do doador.
+                </p>
+
+                <div>
+                   <label className="block text-sm font-bold text-slate-700 mb-2">Tipo de Ocorrência</label>
+                   <select 
+                      className="w-full p-3 bg-white border border-red-200 rounded-xl outline-none focus:border-red-500"
+                      value={issueData.type}
+                      onChange={e => setIssueData({...issueData, type: e.target.value})}
+                   >
+                      <option value="">Selecione...</option>
+                      <option value="Hematoma / Infiltração">Hematoma / Infiltração</option>
+                      <option value="Reação Vagal (Tontura/Desmaio)">Reação Vagal (Tontura/Desmaio)</option>
+                      <option value="Fluxo Lento / Interrompido">Fluxo Lento / Interrompido</option>
+                      <option value="Volume Insuficiente (<300ml)">Volume Insuficiente (&lt;300ml)</option>
+                      <option value="Desistência do Doador">Desistência do Doador</option>
+                   </select>
+                </div>
+
+                <div>
+                   <label className="block text-sm font-bold text-slate-700 mb-2">Observações / Conduta</label>
+                   <textarea 
+                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-red-500 resize-none h-24"
+                      placeholder="Ex: Realizado repouso e hidratação. Doador liberado após 20min."
+                      value={issueData.observation}
+                      onChange={e => setIssueData({...issueData, observation: e.target.value})}
+                   />
+                </div>
+
+                <button 
+                  onClick={handleIssue}
+                  disabled={!issueData.type}
+                  className="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 shadow-lg shadow-red-200 disabled:opacity-50 mt-2"
+                >
+                   Registrar e Encerrar Atendimento
+                </button>
+             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast de Sucesso */}
+      {successMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center animate-scale-up text-center">
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${successMessage.includes('Intercorrência') ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
+              {successMessage.includes('Intercorrência') ? <AlertTriangle size={32} /> : <CheckCircle2 size={32} />}
+            </div>
+            <h3 className="text-xl font-bold text-slate-800 mb-2">
+              {successMessage.includes('Intercorrência') ? 'Registrado' : 'Coleta Finalizada!'}
+            </h3>
+            <p className="text-slate-500 whitespace-pre-line">{successMessage}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
