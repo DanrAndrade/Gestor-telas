@@ -1,93 +1,105 @@
-import { useState, useRef, useEffect } from 'react';
-import { Scan, TestTube, CheckCircle2, XCircle, Printer, AlertTriangle, Search, Ban, User, FileWarning, Eye, EyeOff, ShieldCheck, ChevronRight, X, Save } from 'lucide-react';
+import { useState } from 'react';
+import { FlaskConical, CheckCircle2, XCircle, AlertTriangle, FileText, Microscope, TestTube2, X, RefreshCw } from 'lucide-react';
+import { DEFAULT_EXAMS } from './LabConfigurationPage';
 
-interface BagInAnalysis {
+interface LabBag {
   id: string;
   code: string;
+  type: string; // Tipo declarado/presumido na coleta
   collectedAt: string;
-  volume: number;
-  component: string;
-  donorId: string;
-  donorName: string;
+  status: 'pending' | 'analyzing' | 'approved' | 'discarded';
+  results?: Record<string, string>;
+  finalType?: string; // O tipo real confirmado pelo lab
 }
 
-const QUARANTINE_BAGS: BagInAnalysis[] = [
-  { id: '1', code: 'W1234 56799', collectedAt: '10:30', volume: 450, component: 'Sangue Total', donorId: 'D-9988', donorName: 'Carlos Eduardo Silva' },
-  { id: '2', code: 'W1234 56800', collectedAt: '11:15', volume: 470, component: 'Sangue Total', donorId: 'D-7766', donorName: 'Ana Beatriz Souza' },
+const MOCK_LAB_BAGS: LabBag[] = [
+  { id: '1', code: 'L-8992', type: 'A+', collectedAt: 'Hoje, 08:30', status: 'pending' },
+  { id: '2', code: 'L-8993', type: 'O-', collectedAt: 'Hoje, 09:15', status: 'pending' },
+  { id: '3', code: 'L-8994', type: 'B+', collectedAt: 'Hoje, 10:00', status: 'analyzing' },
 ];
 
 export function LabPage() {
-  const [scanCode, setScanCode] = useState('');
-  const [currentBag, setCurrentBag] = useState<BagInAnalysis | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [showTraceability, setShowTraceability] = useState(false);
+  const [activeTab, setActiveTab] = useState<'queue' | 'history'>('queue');
+  const [bags, setBags] = useState<LabBag[]>(MOCK_LAB_BAGS);
   
-  // Estado para Modal de Descarte
-  const [showDiscardModal, setShowDiscardModal] = useState(false);
-  const [discardReason, setDiscardReason] = useState('');
-  const [blockType, setBlockType] = useState('temporario');
-  const [blockDuration, setBlockDuration] = useState('');
+  const [selectedBag, setSelectedBag] = useState<LabBag | null>(null);
+  
+  // Resultados dos exames normais (Sorologia)
+  const [examResults, setExamResults] = useState<Record<string, 'positive' | 'negative'>>({});
+  
+  // Resultado específico da Tipagem
+  const [typingResult, setTypingResult] = useState({ abo: '', rh: '' });
 
-  const [results, setResults] = useState({
-    bloodType: '',
-    rhFactor: '',
-    serology: '' as 'approved' | 'rejected' | ''
-  });
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
-  const scanInputRef = useRef<HTMLInputElement>(null);
+  const availableExams = DEFAULT_EXAMS;
 
-  useEffect(() => {
-    scanInputRef.current?.focus();
-  }, [currentBag]);
+  const handleOpenAnalysis = (bag: LabBag) => {
+    setSelectedBag(bag);
+    setExamResults({});
+    // Resetar tipagem
+    setTypingResult({ abo: '', rh: '' });
+  };
 
-  const handleScan = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!scanCode) return;
+  const toggleResult = (examId: string, value: 'positive' | 'negative') => {
+    setExamResults(prev => ({ ...prev, [examId]: value }));
+  };
+
+  // Lógica para verificar se a tipagem mudou
+  const getFinalBloodType = () => {
+    if (!typingResult.abo || !typingResult.rh) return null;
+    return `${typingResult.abo}${typingResult.rh}`;
+  };
+
+  const isDivergent = () => {
+    const final = getFinalBloodType();
+    return final && selectedBag && final !== selectedBag.type;
+  };
+
+  const isAllNegative = () => {
+    // Pega apenas exames que NÃO são a tipagem (ID 7 é a tipagem na nossa config padrão)
+    const diseaseExams = availableExams.filter(e => e.id !== '7');
+    return diseaseExams.every(exam => examResults[exam.id] === 'negative');
+  };
+
+  const isComplete = () => {
+    const diseaseExams = availableExams.filter(e => e.id !== '7');
+    const diseasesChecked = diseaseExams.every(exam => examResults[exam.id]);
+    const typingChecked = typingResult.abo !== '' && typingResult.rh !== '';
+    return diseasesChecked && typingChecked;
+  };
+
+  const handleFinishAnalysis = () => {
+    if (!selectedBag) return;
+
+    const approved = isAllNegative();
+    const finalType = getFinalBloodType() || selectedBag.type;
+    const newStatus = approved ? 'approved' : 'discarded';
     
-    const found = QUARANTINE_BAGS.find(b => b.code.endsWith(scanCode) || b.code === scanCode);
+    // Atualiza a bolsa
+    setBags(bags.map(b => b.id === selectedBag.id ? { 
+      ...b, 
+      status: newStatus, 
+      results: { ...examResults, bloodType: finalType },
+      type: finalType // AQUI: Atualizamos o tipo da bolsa para o real
+    } : b));
     
-    if (found) {
-      setCurrentBag(found);
-      setScanCode('');
-      setShowTraceability(false);
-      setResults({ bloodType: '', rhFactor: '', serology: '' });
+    let msg = '';
+    if (approved) {
+      msg = `Bolsa ${selectedBag.code} APROVADA.\nTipagem Confirmada: ${finalType}`;
+      if (isDivergent()) {
+        msg += `\n(ATENÇÃO: Cadastro do doador corrigido de ${selectedBag.type} para ${finalType})`;
+      }
     } else {
-      alert('Bolsa não encontrada na lista de quarentena!');
-      setScanCode('');
+      msg = `Bolsa ${selectedBag.code} REPROVADA nos exames sorológicos.\nMarcada para descarte.`;
     }
-  };
 
-  const openDiscardModal = () => {
-    setShowDiscardModal(true);
-  };
+    setSuccessMessage(msg);
+    setShowSuccess(true);
+    setSelectedBag(null);
 
-  const finalizeDiscard = () => {
-    setIsProcessing(true);
-    setShowDiscardModal(false);
-    
-    setTimeout(() => {
-      alert(`Bolsa DESCARTADA com sucesso.\n\nDoador marcado como INAPTO (${blockType}).\nMotivo: ${discardReason}`);
-      setIsProcessing(false);
-      resetScreen();
-    }, 1500);
-  };
-
-  const handleRelease = () => {
-    setIsProcessing(true);
-    setTimeout(() => {
-      alert(`Bolsa LIBERADA!\nEtiqueta ISBT 128 enviada para impressão.`);
-      setIsProcessing(false);
-      resetScreen();
-    }, 1500);
-  };
-
-  const resetScreen = () => {
-    setCurrentBag(null);
-    setResults({ bloodType: '', rhFactor: '', serology: '' });
-    setShowTraceability(false);
-    setDiscardReason('');
-    setBlockType('temporario');
-    setBlockDuration('');
+    setTimeout(() => setShowSuccess(false), 4000);
   };
 
   return (
@@ -95,317 +107,219 @@ export function LabPage() {
       
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Laboratório e Liberação</h1>
-          <p className="text-slate-500 text-sm">Processamento técnico, tipagem e controle de qualidade.</p>
-        </div>
-        <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 text-amber-700 rounded-lg text-sm border border-amber-100 font-medium">
-          <AlertTriangle size={16} />
-          <span>Fila de Análise: <strong>{QUARANTINE_BAGS.length} bolsas</strong> aguardando</span>
+          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Laboratório de Imunohematologia</h1>
+          <p className="text-slate-500 text-sm">Lançamento de resultados e liberação de bolsas.</p>
         </div>
       </div>
 
-      {!currentBag && (
-        <div className="bg-white border-2 border-dashed border-gray-300 rounded-2xl p-12 flex flex-col items-center justify-center text-center hover:border-brand-red transition-colors group h-[500px]">
-          <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-6 group-hover:bg-red-50 transition-colors">
-            <Scan size={40} className="text-gray-400 group-hover:text-brand-red" />
-          </div>
-          <h2 className="text-xl font-bold text-slate-700 mb-2">Aguardando Leitura de Etiqueta</h2>
-          <p className="text-slate-400 mb-8 max-w-md">Utilize o leitor de código de barras ou digite o código manualmente.</p>
-          
-          <form onSubmit={handleScan} className="w-full max-w-md relative flex gap-2">
-            <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input 
-                  ref={scanInputRef}
-                  type="text" 
-                  className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-xl text-lg font-mono focus:bg-white focus:border-brand-red focus:ring-4 focus:ring-brand-red/10 outline-none transition-all shadow-sm text-center uppercase"
-                  placeholder="BIPAR CÓDIGO"
-                  value={scanCode}
-                  onChange={e => setScanCode(e.target.value)}
-                  autoFocus
-                />
-            </div>
-            <button 
-                type="submit"
-                className="px-6 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-700 transition-colors"
-            >
-                Entrar
-            </button>
-          </form>
-          <p className="mt-4 text-xs text-gray-400">Dica: Digite "W1234 56799" para testar.</p>
-        </div>
-      )}
+      <div className="flex border-b border-gray-200">
+        <button 
+          onClick={() => setActiveTab('queue')}
+          className={`px-6 py-3 text-sm font-bold flex items-center gap-2 border-b-2 transition-all ${activeTab === 'queue' ? 'border-brand-red text-brand-red' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          <Microscope size={18} /> Bancada de Análise
+        </button>
+      </div>
 
-      {currentBag && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 h-fit shadow-sm">
-            <div className="flex items-center gap-3 mb-6 pb-6 border-b border-gray-100">
-              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
-                <TestTube size={24} />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-gray-400 uppercase">Bolsa em Análise</p>
-                <p className="font-mono font-bold text-xl text-slate-800 tracking-tight">{currentBag.code}</p>
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500 text-sm">Hemocomponente</span>
-                <span className="font-medium text-slate-700 bg-gray-100 px-2 py-1 rounded text-xs">{currentBag.component}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500 text-sm">Volume Coletado</span>
-                <span className="font-medium text-slate-700">{currentBag.volume} ml</span>
-              </div>
-              
-              <div className={`mt-6 pt-6 border-t border-gray-100 transition-all ${showTraceability ? 'bg-slate-50 p-4 rounded-xl border border-slate-200' : ''}`}>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                     <ShieldCheck size={14} className="text-slate-400" />
-                     <span className="text-xs font-bold text-slate-500 uppercase">Rastreabilidade</span>
+      {activeTab === 'queue' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+           {bags.filter(b => b.status === 'pending' || b.status === 'analyzing').map(bag => (
+             <div key={bag.id} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all">
+                <div className="flex justify-between items-start mb-4">
+                   <div className="flex items-center gap-3">
+                     <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+                        <TestTube2 size={24} />
+                     </div>
+                     <div>
+                        <p className="font-mono font-bold text-lg text-slate-800">{bag.code}</p>
+                        <p className="text-xs text-slate-500">{bag.collectedAt}</p>
+                     </div>
+                   </div>
+                   <span className="bg-slate-100 text-slate-700 font-bold px-2 py-1 rounded-lg text-sm">{bag.type}</span>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-xs text-slate-500 bg-gray-50 p-2 rounded-lg">
+                    <FlaskConical size={14} />
+                    <span>Aguardando {availableExams.length} exames</span>
                   </div>
                   
                   <button 
-                    onClick={() => setShowTraceability(!showTraceability)}
-                    className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-800 font-bold transition-colors"
+                    onClick={() => handleOpenAnalysis(bag)}
+                    className="w-full py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-700 transition-colors flex items-center justify-center gap-2"
                   >
-                    {showTraceability ? <><EyeOff size={12} /> Ocultar</> : <><Eye size={12} /> Revelar Doador</>}
+                    <Microscope size={18} />
+                    Lançar Resultados
                   </button>
                 </div>
+             </div>
+           ))}
+        </div>
+      )}
 
-                {showTraceability ? (
-                  <div className="animate-fade-in-up">
-                    <div className="flex items-start gap-3 mt-3">
-                      <div className="bg-white p-2 rounded-full shadow-sm border border-gray-100">
-                        <User size={20} className="text-slate-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-slate-800">{currentBag.donorName}</p>
-                        <p className="text-xs text-slate-500 font-mono">ID: {currentBag.donorId}</p>
-                      </div>
+      {selectedBag && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl my-8 animate-scale-up flex flex-col max-h-[90vh]">
+            
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10 rounded-t-2xl">
+              <div>
+                 <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                   <Microscope className="text-brand-red" /> Análise Laboratorial
+                 </h2>
+                 <p className="text-slate-500 text-sm">Bolsa: <strong className="font-mono text-slate-800">{selectedBag.code}</strong> • Declarado: {selectedBag.type}</p>
+              </div>
+              <button onClick={() => setSelectedBag(null)}><X size={24} className="text-slate-400 hover:text-slate-600" /></button>
+            </div>
+
+            <div className="p-6 space-y-8 overflow-y-auto custom-scrollbar">
+              
+              {/* BLOCO ESPECIAL: TIPAGEM ABO/RH (ID 7) */}
+              <div className="bg-blue-50/50 p-5 rounded-xl border border-blue-100">
+                <h3 className="text-sm font-bold text-blue-800 mb-4 flex items-center gap-2">
+                  <TestTube2 size={18} /> Tipagem Sanguínea (Confirmação)
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Grupo ABO</label>
+                    <div className="flex gap-2">
+                      {['A', 'B', 'AB', 'O'].map(type => (
+                        <button
+                          key={type}
+                          onClick={() => setTypingResult(prev => ({ ...prev, abo: type }))}
+                          className={`flex-1 py-3 rounded-lg font-bold border transition-all ${
+                            typingResult.abo === type 
+                              ? 'bg-blue-600 text-white border-blue-700 shadow-md' 
+                              : 'bg-white text-slate-600 border-gray-200 hover:bg-white'
+                          }`}
+                        >
+                          {type}
+                        </button>
+                      ))}
                     </div>
                   </div>
-                ) : (
-                   <div className="flex items-center gap-2 text-slate-400 text-sm italic mt-1 bg-gray-50 p-2 rounded-lg">
-                     <User size={14} />
-                     <span>Vínculo anonimizado</span>
-                   </div>
-                )}
-              </div>
-              
-              <button 
-                onClick={resetScreen}
-                className="w-full mt-4 py-2.5 text-sm text-slate-500 hover:text-slate-700 hover:bg-gray-50 rounded-lg transition-colors border border-transparent hover:border-gray-200"
-              >
-                Cancelar / Ler Outra
-              </button>
-            </div>
-          </div>
 
-          <div className="lg:col-span-2 bg-white border border-gray-200 rounded-2xl p-8 shadow-sm">
-            <h3 className="font-bold text-lg text-slate-800 mb-6 flex items-center gap-2">
-              <TestTube size={20} className="text-brand-red" />
-              Resultados Laboratoriais
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-3">Tipagem ABO</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {['A', 'B', 'AB', 'O'].map(type => (
-                    <button
-                      key={type}
-                      onClick={() => setResults({...results, bloodType: type})}
-                      className={`h-12 rounded-xl font-bold border transition-all text-sm ${
-                        results.bloodType === type 
-                          ? 'bg-slate-800 text-white border-slate-800 ring-2 ring-slate-800 ring-offset-2' 
-                          : 'bg-white border-gray-200 text-slate-600 hover:border-brand-red hover:text-brand-red'
-                      }`}
-                    >
-                      {type}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-3">Fator Rh</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {['+', '-'].map(rh => (
-                    <button
-                      key={rh}
-                      onClick={() => setResults({...results, rhFactor: rh})}
-                      className={`h-12 rounded-xl font-bold border transition-all text-sm ${
-                        results.rhFactor === rh 
-                          ? 'bg-slate-800 text-white border-slate-800 ring-2 ring-slate-800 ring-offset-2' 
-                          : 'bg-white border-gray-200 text-slate-600 hover:border-brand-red hover:text-brand-red'
-                      }`}
-                    >
-                      {rh}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="mb-8">
-              <label className="block text-sm font-bold text-slate-700 mb-3">Sorologia e Testes NAT</label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button
-                  onClick={() => setResults({...results, serology: 'approved'})}
-                  className={`p-4 rounded-xl border flex items-center gap-3 transition-all ${
-                    results.serology === 'approved'
-                      ? 'bg-emerald-50 border-emerald-500 text-emerald-800 ring-1 ring-emerald-500'
-                      : 'bg-white border-gray-200 text-slate-600 hover:border-emerald-300 hover:bg-emerald-50/50'
-                  }`}
-                >
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center ${results.serology === 'approved' ? 'bg-emerald-200 text-emerald-700' : 'bg-gray-100 text-gray-400'}`}>
-                    <CheckCircle2 size={16} />
-                  </div>
-                  <div className="text-left">
-                    <span className="font-bold text-sm block">Aprovado (Negativo)</span>
-                    <span className="text-xs text-slate-500">Apto para transfusão</span>
-                  </div>
-                </button>
-                
-                <button
-                  onClick={() => {
-                    setResults({...results, serology: 'rejected'});
-                    setShowTraceability(true); // Revela quem é o doador pois haverá bloqueio
-                  }}
-                  className={`p-4 rounded-xl border flex items-center gap-3 transition-all ${
-                    results.serology === 'rejected'
-                      ? 'bg-red-50 border-red-500 text-red-800 ring-1 ring-red-500'
-                      : 'bg-white border-gray-200 text-slate-600 hover:border-red-300 hover:bg-red-50/50'
-                  }`}
-                >
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center ${results.serology === 'rejected' ? 'bg-red-200 text-red-700' : 'bg-gray-100 text-gray-400'}`}>
-                    <Ban size={16} />
-                  </div>
-                  <div className="text-left">
-                    <span className="font-bold text-sm block">Reagente (Inapto)</span>
-                    <span className="text-xs text-slate-500">Risco Biológico</span>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            <div className="pt-6 border-t border-gray-100 flex gap-4">
-              <button 
-                onClick={openDiscardModal}
-                disabled={isProcessing}
-                className={`flex-1 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
-                  results.serology === 'rejected' 
-                    ? 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-200' 
-                    : 'bg-gray-100 text-slate-600 hover:bg-gray-200'
-                }`}
-              >
-                <XCircle size={20} />
-                {results.serology === 'rejected' ? 'Processar Descarte e Bloqueio' : 'Descartar'}
-              </button>
-              
-              <button 
-                onClick={handleRelease}
-                disabled={isProcessing || results.serology === 'rejected' || !results.bloodType || !results.rhFactor || !results.serology}
-                className="flex-[2] py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:bg-slate-300"
-              >
-                {isProcessing ? 'Processando...' : (
-                  <>
-                    <Printer size={20} />
-                    Liberar para Estoque
-                  </>
-                )}
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Descarte e Bloqueio de Doador */}
-      {showDiscardModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-scale-up border-2 border-red-100">
-             <div className="px-6 py-4 border-b border-gray-100 bg-red-50 flex items-center justify-between">
-                <h3 className="font-bold text-red-800 flex items-center gap-2">
-                   <FileWarning size={20} />
-                   Descarte de Bolsa e Bloqueio
-                </h3>
-                <button onClick={() => setShowDiscardModal(false)} className="text-red-400 hover:text-red-700">
-                   <X size={20} />
-                </button>
-             </div>
-             
-             <div className="p-6 space-y-4">
-                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-4">
-                  <p className="text-xs font-bold text-slate-500 uppercase">Doador Afetado</p>
-                  <p className="font-bold text-slate-800">{currentBag?.donorName}</p>
-                </div>
-
-                <div>
-                   <label className="block text-sm font-bold text-slate-700 mb-2">Motivo do Descarte / Inaptidão</label>
-                   <select 
-                      className="w-full p-3 bg-white border border-gray-300 rounded-xl outline-none focus:border-red-500"
-                      value={discardReason}
-                      onChange={e => setDiscardReason(e.target.value)}
-                   >
-                      <option value="">Selecione...</option>
-                      <option value="Sorologia Positiva (HIV/Hepatite/Chagas)">Sorologia Positiva (HIV/Hepatite/Chagas)</option>
-                      <option value="Volume Insuficiente">Volume Insuficiente (Falha na Coleta)</option>
-                      <option value="Hemólise / Coágulos">Aspecto Visual (Hemólise/Coágulos)</option>
-                      <option value="Validade Expirada">Validade Expirada</option>
-                      <option value="Controle de Qualidade">Reprovado no Controle de Qualidade</option>
-                   </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Tipo de Bloqueio</label>
-                    <select 
-                        className="w-full p-3 bg-white border border-gray-300 rounded-xl outline-none focus:border-red-500"
-                        value={blockType}
-                        onChange={e => setBlockType(e.target.value)}
-                    >
-                        <option value="temporario">Temporário</option>
-                        <option value="definitivo">Definitivo</option>
-                    </select>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Fator Rh</label>
+                    <div className="flex gap-2">
+                      {['+', '-'].map(rh => (
+                        <button
+                          key={rh}
+                          onClick={() => setTypingResult(prev => ({ ...prev, rh: rh }))}
+                          className={`flex-1 py-3 rounded-lg font-bold border transition-all ${
+                            typingResult.rh === rh 
+                              ? 'bg-blue-600 text-white border-blue-700 shadow-md' 
+                              : 'bg-white text-slate-600 border-gray-200 hover:bg-white'
+                          }`}
+                        >
+                          {rh === '+' ? 'Positivo (+)' : 'Negativo (-)'}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  
-                  {blockType === 'temporario' && (
-                     <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-2">Dias de Inaptidão</label>
-                        <input 
-                           type="number"
-                           className="w-full p-3 bg-white border border-gray-300 rounded-xl outline-none focus:border-red-500"
-                           placeholder="Ex: 30"
-                           value={blockDuration}
-                           onChange={e => setBlockDuration(e.target.value)}
-                        />
-                     </div>
-                  )}
                 </div>
 
-                <div className="flex items-start gap-2 p-3 bg-amber-50 text-amber-800 rounded-xl text-xs mt-2">
-                   <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-                   <p>Atenção: Ao confirmar, a bolsa será destruída (incineração) e o registro do doador será atualizado automaticamente com a inaptidão.</p>
-                </div>
-             </div>
+                {isDivergent() && (
+                  <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3 animate-pulse-slow">
+                    <RefreshCw className="text-amber-600 mt-0.5" size={18} />
+                    <div>
+                      <p className="text-sm font-bold text-amber-800">Divergência Detectada</p>
+                      <p className="text-xs text-amber-700">
+                        O doador declarou ser <strong>{selectedBag.type}</strong>, mas o teste indicou <strong>{getFinalBloodType()}</strong>. 
+                        O cadastro do doador será corrigido automaticamente ao salvar.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
 
-             <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
-                <button onClick={() => setShowDiscardModal(false)} className="px-4 py-2 text-slate-500 font-bold hover:bg-gray-200 rounded-lg">Cancelar</button>
-                <button 
-                  onClick={finalizeDiscard}
-                  disabled={!discardReason || (blockType === 'temporario' && !blockDuration)}
-                  className="px-6 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 shadow-lg shadow-red-200 disabled:opacity-50"
-                >
-                   Confirmar Descarte
-                </button>
-             </div>
+              {/* OUTROS EXAMES (SOROLOGIA e PAI) */}
+              <div>
+                <h3 className="text-xs font-bold text-slate-400 uppercase mb-4 flex items-center gap-2">
+                  <span className="w-full h-px bg-gray-200"></span>
+                  Exames Obrigatórios (Segurança)
+                  <span className="w-full h-px bg-gray-200"></span>
+                </h3>
+                <div className="space-y-3">
+                  {availableExams.filter(e => e.id !== '7').map(exam => (
+                    <div key={exam.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
+                      <div className="mb-2 sm:mb-0">
+                        <p className="font-bold text-slate-800">{exam.name}</p>
+                        <p className="text-xs text-slate-500">{exam.method}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => toggleResult(exam.id, 'negative')}
+                          className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all border ${
+                            examResults[exam.id] === 'negative' 
+                              ? 'bg-emerald-500 text-white border-emerald-600 shadow-md' 
+                              : 'bg-white text-slate-500 border-gray-200 hover:bg-gray-100'
+                          }`}
+                        >
+                          {exam.type === 'immuno' ? 'Negativo' : 'Não Reagente'}
+                        </button>
+                        <button 
+                          onClick={() => toggleResult(exam.id, 'positive')}
+                          className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all border ${
+                            examResults[exam.id] === 'positive' 
+                              ? 'bg-red-500 text-white border-red-600 shadow-md' 
+                              : 'bg-white text-slate-500 border-gray-200 hover:bg-gray-100'
+                          }`}
+                        >
+                          {exam.type === 'immuno' ? 'Positivo' : 'Reagente'}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+
+            <div className="p-6 border-t border-gray-100 bg-gray-50 sticky bottom-0 rounded-b-2xl">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                 <div className="text-sm">
+                   Resultado Final: 
+                   {!isComplete() ? (
+                     <span className="font-bold text-slate-400 ml-2">Preencha todos os campos...</span>
+                   ) : isAllNegative() ? (
+                     <span className="font-bold text-emerald-600 ml-2 flex items-center gap-1 inline-flex"><CheckCircle2 size={16}/> APROVADO</span>
+                   ) : (
+                     <span className="font-bold text-red-600 ml-2 flex items-center gap-1 inline-flex"><XCircle size={16}/> REPROVADO (Descarte)</span>
+                   )}
+                 </div>
+
+                 <button 
+                   disabled={!isComplete()}
+                   onClick={handleFinishAnalysis}
+                   className={`px-8 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2 ${
+                     !isComplete() ? 'bg-gray-200 text-gray-400 cursor-not-allowed' :
+                     isAllNegative() 
+                       ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-200'
+                       : 'bg-red-600 text-white hover:bg-red-700 shadow-red-200'
+                   }`}
+                 >
+                   {isAllNegative() ? 'Liberar Bolsa' : 'Confirmar Descarte'}
+                 </button>
+              </div>
+            </div>
+
           </div>
         </div>
       )}
+
+      {showSuccess && (
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center animate-scale-up text-center">
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${successMessage.includes('REPROVADA') ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
+              {successMessage.includes('REPROVADA') ? <AlertTriangle size={32} /> : <CheckCircle2 size={32} />}
+            </div>
+            <h3 className="text-xl font-bold text-slate-800 mb-2">{successMessage.includes('REPROVADA') ? 'Bolsa Descartada' : 'Bolsa Liberada'}</h3>
+            <p className="text-slate-500 whitespace-pre-line">{successMessage}</p>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

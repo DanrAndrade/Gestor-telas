@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'; // Importar useNavigate
 import { 
   LayoutDashboard, 
   Users, 
@@ -12,7 +13,8 @@ import {
   Syringe,
   LogOut as LogOutIcon,
   FileText,
-  Sliders
+  Sliders,
+  TestTube2
 } from 'lucide-react';
 import { SidebarItem } from './SidebarItem';
 
@@ -22,6 +24,14 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
+  const navigate = useNavigate(); // Hook de navegação
+
+  const handleLogout = () => {
+    // Aqui você limparia o token de autenticação no futuro
+    // localStorage.removeItem('token'); 
+    navigate('/login');
+  };
+
   return (
     <>
       <div 
@@ -84,12 +94,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             <SidebarItem icon={MessageSquare} label="Comunicação" to="/dashboard/comunicacao" />
             <SidebarItem icon={Settings} label="Administrativo" to="/dashboard/admin" exact={true} />
             <SidebarItem icon={Sliders} label="Configuração de Estoque" to="/dashboard/admin/configuracao" />
+            <SidebarItem icon={TestTube2} label="Configuração Laboratorial" to="/dashboard/admin/laboratorio" />
             <SidebarItem icon={FileText} label="Auditoria & Logs" to="/dashboard/admin/auditoria" />
           </div>
         </div>
 
         <div className="p-4 border-t border-gray-100">
-          <button className="flex items-center gap-3 w-full px-4 py-3 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all text-sm font-medium">
+          <button 
+            onClick={handleLogout}
+            className="flex items-center gap-3 w-full px-4 py-3 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all text-sm font-medium"
+          >
             <LogOut size={20} />
             <span>Sair do Sistema</span>
           </button>

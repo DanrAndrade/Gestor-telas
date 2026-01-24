@@ -1,21 +1,18 @@
 import React from 'react';
 import { User, Lock, ArrowRight } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom'; // 1. Importar useNavigate
+import { Link, useNavigate } from 'react-router-dom'; 
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { AuthLayout } from '../layouts/AuthLayout';
 
 export function LoginPage() {
-  const navigate = useNavigate(); // 2. Inicializar o hook de navegação
+  const navigate = useNavigate(); 
 
-  // 3. Função para lidar com o "Login"
   const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault(); // Evita recarregar a página
+    e.preventDefault(); 
     
-    // Aqui entraria a lógica de API (validar senha, pegar token, etc)
     console.log("Fazendo login...");
     
-    // Por enquanto, redireciona direto para o Dashboard
     navigate('/dashboard'); 
   };
 
@@ -24,7 +21,6 @@ export function LoginPage() {
       title="Bem-vindo" 
       subtitle="Insira suas credenciais para acessar o painel."
     >
-      {/* 4. Adicionar onSubmit no formulário */}
       <form onSubmit={handleLogin} className="space-y-6">
         <Input 
           label="E-mail" 
@@ -52,7 +48,6 @@ export function LoginPage() {
         </div>
 
         <div className="pt-4">
-          {/* 5. Garantir que o botão seja type="submit" */}
           <Button type="submit" className="w-full py-4 text-base group">
             Acessar Sistema
             <ArrowRight size={20} className="ml-2 group-hover:translate-x-1 transition-transform" />

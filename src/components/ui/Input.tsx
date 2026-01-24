@@ -10,13 +10,10 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ label, icon: Icon, error, className, type, ...props }, ref) => {
     
-    // Estado para controlar a visibilidade da senha
     const [showPassword, setShowPassword] = useState(false);
     
-    // Verifica se é um campo de senha
     const isPasswordType = type === 'password';
     
-    // Determina o tipo real do input (se for senha e estiver visível, vira texto)
     const currentType = isPasswordType && showPassword ? 'text' : type;
 
     const togglePasswordVisibility = () => {
@@ -32,7 +29,6 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         )}
         
         <div className="relative group">
-          {/* Ícone da Esquerda (User, Lock, etc) */}
           {Icon && (
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-ui-muted group-focus-within:text-brand-red transition-colors">
               <Icon size={20} />
@@ -56,13 +52,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             {...props}
           />
 
-          {/* Botão "Olhinho" (Apenas para senhas) */}
           {isPasswordType && (
             <button
               type="button"
               onClick={togglePasswordVisibility}
               className="absolute inset-y-0 right-0 pr-4 flex items-center text-ui-muted hover:text-brand-red transition-colors cursor-pointer outline-none"
-              tabIndex={-1} // Evita foco via Tab para não atrapalhar a digitação
+              tabIndex={-1} 
             >
               {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>

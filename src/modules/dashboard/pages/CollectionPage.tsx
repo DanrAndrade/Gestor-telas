@@ -19,14 +19,12 @@ export function CollectionPage() {
   const [queue, setQueue] = useState<DonorInQueue[]>(MOCK_QUEUE);
   const [selectedDonor, setSelectedDonor] = useState<DonorInQueue | null>(null);
   
-  // Estados do Formulário de Coleta
   const [collectionData, setCollectionData] = useState({
     bagType: 'Sangue Total',
-    volume: 450, // Valor padrão ideal
+    volume: 450, 
     lotNumber: ''
   });
 
-  // Estados de Intercorrência
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [issueData, setIssueData] = useState({ type: '', observation: '' });
 
@@ -39,7 +37,6 @@ export function CollectionPage() {
   };
 
   const handleSuccess = () => {
-    // Validação Rígida de Volume
     if (collectionData.volume <= 0) {
       alert('Informe um volume válido.');
       return;
@@ -91,7 +88,6 @@ export function CollectionPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* LISTA DE ESPERA */}
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden h-fit">
           <div className="p-4 border-b border-gray-100 bg-gray-50/50">
             <h2 className="font-bold text-slate-700 flex items-center gap-2">
@@ -121,7 +117,6 @@ export function CollectionPage() {
           </div>
         </div>
 
-        {/* ÁREA DE REGISTRO */}
         <div className="lg:col-span-2">
           {!selectedDonor ? (
             <div className="bg-white border-2 border-dashed border-gray-300 rounded-2xl h-[400px] flex flex-col items-center justify-center text-slate-400">
@@ -167,7 +162,6 @@ export function CollectionPage() {
                         value={collectionData.volume}
                         onChange={e => {
                           const val = Number(e.target.value);
-                          // Impede digitar mais que 450 visualmente se desejar, ou deixa validar no submit
                           setCollectionData({...collectionData, volume: val});
                         }}
                      />
@@ -215,9 +209,8 @@ export function CollectionPage() {
         </div>
       </div>
 
-      {/* Modal de Intercorrência */}
       {showIssueModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-scale-up border-2 border-red-100">
              <div className="flex justify-between items-center mb-6">
                 <h3 className="font-bold text-red-800 flex items-center gap-2">

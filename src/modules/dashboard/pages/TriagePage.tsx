@@ -1,366 +1,277 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Activity, Thermometer, Weight, Heart, CheckCircle2, AlertOctagon, Calendar, ChevronRight, AlertTriangle, ArrowLeft, Save, X } from 'lucide-react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { CheckCircle2, XCircle, AlertTriangle, Thermometer, Activity, Scale, Heart, Save, ArrowRight, AlertOctagon, FileText } from 'lucide-react';
 
-interface Question {
+interface TriageQuestion {
   id: string;
   text: string;
-  isImpeditivo: boolean;
-  blockDays?: number; 
+  type: 'boolean';
+  expectedAnswer: boolean;
+  failureMessage: string;
 }
 
-const QUESTIONS: Question[] = [
-  { id: 'q1', text: 'Dormiu pelo menos 6h na última noite?', isImpeditivo: true, blockDays: 1 },
-  { id: 'q2', text: 'Está alimentado e evitou alimentos gordurosos nas últimas 4h?', isImpeditivo: true, blockDays: 1 },
-  { id: 'q3', text: 'Fez tatuagem ou piercing nos últimos 12 meses?', isImpeditivo: true, blockDays: 365 },
-  { id: 'q4', text: 'Passou por cirurgia ou procedimento médico recente?', isImpeditivo: true, blockDays: 180 },
-  { id: 'q5', text: 'Teve diagnóstico de Hepatite, Chagas ou HIV?', isImpeditivo: true, blockDays: 0 }, 
+const TRIAGE_QUESTIONS: TriageQuestion[] = [
+  { id: '1', text: 'Teve febre ou gripe nos últimos 15 dias?', type: 'boolean', expectedAnswer: false, failureMessage: 'Sintomas gripais recentes (Inapto por 15 dias).' },
+  { id: '2', text: 'Fez tatuagem ou maquiagem definitiva nos últimos 12 meses?', type: 'boolean', expectedAnswer: false, failureMessage: 'Tatuagem recente (Inapto por 12 meses).' },
+  { id: '3', text: 'Teve relação sexual de risco ou com parceiros desconhecidos recentemente?', type: 'boolean', expectedAnswer: false, failureMessage: 'Comportamento de risco (Janela imunológica).' },
+  { id: '4', text: 'Ingeriu bebida alcoólica nas últimas 12 horas?', type: 'boolean', expectedAnswer: false, failureMessage: 'Ingestão de álcool recente.' },
+  { id: '5', text: 'Está grávida ou amamentando?', type: 'boolean', expectedAnswer: false, failureMessage: 'Gravidez ou amamentação em curso.' },
+  { id: '6', text: 'Realizou endoscopia ou colonoscopia nos últimos 6 meses?', type: 'boolean', expectedAnswer: false, failureMessage: 'Procedimento invasivo recente (Inapto por 6 meses).' },
+  { id: '7', text: 'Teve hepatite após os 11 anos de idade?', type: 'boolean', expectedAnswer: false, failureMessage: 'Histórico de Hepatite (Inapto definitivo).' },
+  { id: '8', text: 'Uso de drogas ilícitas injetáveis?', type: 'boolean', expectedAnswer: false, failureMessage: 'Uso de drogas injetáveis (Inapto definitivo).' },
 ];
-
-type Step = 'vitals' | 'questions' | 'result';
 
 export function TriagePage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [currentStep, setCurrentStep] = useState<Step>('vitals');
   
-  const [selectedDonor, setSelectedDonor] = useState<{name: string, id: string} | null>(null);
+  const [vitals, setVitals] = useState({
+    weight: '',
+    temperature: '',
+    systolic: '',
+    diastolic: '',
+    pulse: ''
+  });
 
-  const [answers, setAnswers] = useState<Record<string, { value: string; date?: string }>>({});
-  const [vitals, setVitals] = useState({ weight: '', pressure: '', temp: '' });
-  const [result, setResult] = useState<{ status: 'apto' | 'inapto'; reason?: string; returnDate?: string } | null>(null);
+  const [answers, setAnswers] = useState<Record<string, boolean>>({});
+  
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [rejectionReasons, setRejectionReasons] = useState<string[]>([]);
 
-  const [potentialBlock, setPotentialBlock] = useState<{ reason: string; date: string } | null>(null);
-
-  useEffect(() => {
-    if (location.state?.donor) {
-      setSelectedDonor(location.state.donor);
-    } else {
-      navigate('/dashboard/doadores');
-    }
-  }, [location, navigate]);
-
-  const handleVitalChange = (field: string, value: string) => {
-    setVitals(prev => ({ ...prev, [field]: value }));
+  const handleAnswer = (questionId: string, value: boolean) => {
+    setAnswers(prev => ({ ...prev, [questionId]: value }));
   };
 
-  const handleAnswerChange = (qId: string, value: string) => {
-    setAnswers(prev => ({ 
-      ...prev, 
-      [qId]: { ...prev[qId], value } 
-    }));
-  };
+  const handleFinishTriage = () => {
+    const reasons: string[] = [];
 
-  const handleDateChange = (qId: string, date: string) => {
-    setAnswers(prev => ({ 
-      ...prev, 
-      [qId]: { ...prev[qId], date } 
-    }));
-  };
+    const weight = Number(vitals.weight);
+    const temp = Number(vitals.temperature);
+    const sys = Number(vitals.systolic);
+    const dia = Number(vitals.diastolic);
+    const pulse = Number(vitals.pulse);
 
-  const validateAnswers = () => {
-    let detectedBlock = null;
+    if (weight < 50) reasons.push('Peso inferior a 50kg (Mínimo exigido).');
+    if (temp > 37.8) reasons.push(`Estado febril detectado (${temp}°C).`);
+    if (sys > 180 || sys < 90) reasons.push(`Pressão sistólica fora dos limites (${sys}).`);
+    if (dia > 100 || dia < 60) reasons.push(`Pressão diastólica fora dos limites (${dia}).`);
+    if (pulse < 50 || pulse > 100) reasons.push(`Batimentos cardíacos irregulares (${pulse} bpm).`);
 
-    if (Number(vitals.weight) < 50) {
-      setPotentialBlock({ reason: 'Peso inferior a 50kg', date: 'Hoje' });
-      return;
-    }
-
-    for (const q of QUESTIONS) {
-      const ans = answers[q.id];
-      
-      if ((q.id === 'q1' || q.id === 'q2') && ans?.value === 'nao') {
-         setPotentialBlock({ reason: q.id === 'q1' ? 'Sono Insuficiente' : 'Jejum/Alimentação', date: 'Hoje' });
-         return;
+    TRIAGE_QUESTIONS.forEach(q => {
+      const userAnswer = answers[q.id];
+      if (userAnswer !== undefined && userAnswer !== q.expectedAnswer) {
+        reasons.push(q.failureMessage);
       }
+    });
 
-      if (ans?.value === 'sim') {
-        let blockDate = new Date();
-        if (ans.date && q.blockDays) {
-          const occurrence = new Date(ans.date);
-          const release = new Date(occurrence);
-          release.setDate(release.getDate() + q.blockDays);
-          blockDate = release;
-        } else if (q.blockDays === 0) {
-          blockDate = new Date(2099, 11, 31);
-        }
-
-        if (blockDate > new Date()) {
-           setPotentialBlock({ 
-             reason: q.text, 
-             date: blockDate.getFullYear() === 2099 ? 'Definitivo' : blockDate.toLocaleDateString('pt-BR') 
-           });
-           return;
-        }
-      }
-    }
-
-    finishTriage('apto');
+    setRejectionReasons(reasons);
+    setShowResultModal(true);
   };
 
-  const confirmBlock = () => {
-    if (potentialBlock) {
-      finishTriage('inapto', potentialBlock.reason, potentialBlock.date);
-      setPotentialBlock(null);
-    }
+  const handleConfirmResult = () => {
+    setShowResultModal(false);
+    navigate('/dashboard/doadores'); 
   };
 
-  const cancelBlock = () => {
-    setPotentialBlock(null);
-  };
-
-  const finishTriage = (status: 'apto' | 'inapto', reason?: string, returnDate?: string) => {
-    setResult({ status, reason, returnDate });
-    setCurrentStep('result');
-  };
-
-  if (!selectedDonor) return null;
+  const isApproved = rejectionReasons.length === 0;
 
   return (
-    <div className="space-y-6 animate-fade-in-up pb-20">
+    <div className="space-y-6 animate-fade-in-up">
       
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/dashboard/doadores')} className="p-2 hover:bg-gray-100 rounded-full text-slate-500 transition-colors">
-            <ArrowLeft size={24} />
-          </button>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Triagem Clínica</h1>
-            <p className="text-slate-500 text-sm">Avaliação de aptidão do doador.</p>
-          </div>
-        </div>
-        
-        <div className="hidden md:flex items-center gap-3 px-4 py-2 bg-blue-50 text-blue-800 rounded-xl border border-blue-100 animate-fade-in">
-          <div className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center font-bold text-blue-700 text-xs">
-            {selectedDonor.name.charAt(0)}
-          </div>
-          <div className="text-sm">
-            <p className="font-bold">{selectedDonor.name}</p>
-            <p className="text-xs opacity-70">Em atendimento</p>
-          </div>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Triagem Clínica</h1>
+          <p className="text-slate-500 text-sm">Avaliação de sinais vitais e entrevista confidencial.</p>
         </div>
       </div>
 
-      <div className="flex gap-4 mb-8">
-        <div className={`flex-1 h-2 rounded-full transition-all ${['vitals', 'questions', 'result'].includes(currentStep) ? 'bg-brand-red' : 'bg-gray-200'}`} />
-        <div className={`flex-1 h-2 rounded-full transition-all ${['questions', 'result'].includes(currentStep) ? 'bg-brand-red' : 'bg-gray-200'}`} />
-        <div className={`flex-1 h-2 rounded-full transition-all ${currentStep === 'result' ? 'bg-brand-red' : 'bg-gray-200'}`} />
-      </div>
-
-      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-8 max-w-4xl mx-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {currentStep === 'vitals' && (
-          <div className="animate-fade-in">
-            <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-              <Activity className="text-brand-red" />
-              Sinais Vitais
-            </h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="space-y-2">
-                <label className="font-bold text-slate-700 flex items-center gap-2">
-                  <Weight size={18} /> Peso (kg) <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  type="number" 
-                  className="w-full text-3xl font-bold p-4 border border-gray-200 rounded-xl focus:border-brand-red focus:ring-4 focus:ring-brand-red/10 outline-none transition-all"
-                  placeholder="00.0"
-                  value={vitals.weight}
-                  onChange={e => handleVitalChange('weight', e.target.value)}
-                  autoFocus
-                />
-              </div>
+        <div className="space-y-6">
+           <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+             <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+               <Activity className="text-brand-red" size={20} /> Sinais Vitais
+             </h2>
+             
+             <div className="space-y-4">
+               <div>
+                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Peso (kg)</label>
+                 <div className="relative">
+                   <Scale className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                   <input 
+                      type="number" 
+                      className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-brand-red font-bold text-slate-700"
+                      placeholder="Ex: 75.5"
+                      value={vitals.weight}
+                      onChange={e => setVitals({...vitals, weight: e.target.value})}
+                   />
+                 </div>
+               </div>
 
-              <div className="space-y-2">
-                <label className="font-bold text-slate-700 flex items-center gap-2">
-                  <Heart size={18} /> Pressão Arterial <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  type="text" 
-                  className="w-full text-3xl font-bold p-4 border border-gray-200 rounded-xl focus:border-brand-red focus:ring-4 focus:ring-brand-red/10 outline-none transition-all"
-                  placeholder="12/8"
-                  value={vitals.pressure}
-                  onChange={e => handleVitalChange('pressure', e.target.value)}
-                />
-              </div>
+               <div>
+                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Temperatura (°C)</label>
+                 <div className="relative">
+                   <Thermometer className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                   <input 
+                      type="number" 
+                      className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-brand-red font-bold text-slate-700"
+                      placeholder="Ex: 36.5"
+                      value={vitals.temperature}
+                      onChange={e => setVitals({...vitals, temperature: e.target.value})}
+                   />
+                 </div>
+               </div>
 
-              <div className="space-y-2">
-                <label className="font-bold text-slate-700 flex items-center gap-2">
-                  <Thermometer size={18} /> Temperatura (°C) <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  type="number" 
-                  className="w-full text-3xl font-bold p-4 border border-gray-200 rounded-xl focus:border-brand-red focus:ring-4 focus:ring-brand-red/10 outline-none transition-all"
-                  placeholder="36.5"
-                  value={vitals.temp}
-                  onChange={e => handleVitalChange('temp', e.target.value)}
-                />
-              </div>
-            </div>
+               <div className="grid grid-cols-2 gap-3">
+                 <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Pressão (Sys)</label>
+                    <input 
+                        type="number" 
+                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-brand-red font-bold text-slate-700"
+                        placeholder="120"
+                        value={vitals.systolic}
+                        onChange={e => setVitals({...vitals, systolic: e.target.value})}
+                    />
+                 </div>
+                 <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Pressão (Dia)</label>
+                    <input 
+                        type="number" 
+                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-brand-red font-bold text-slate-700"
+                        placeholder="80"
+                        value={vitals.diastolic}
+                        onChange={e => setVitals({...vitals, diastolic: e.target.value})}
+                    />
+                 </div>
+               </div>
 
-            <div className="mt-10 flex justify-end">
-              <button 
-                onClick={() => setCurrentStep('questions')}
-                disabled={!vitals.weight || !vitals.pressure || !vitals.temp}
-                className="px-8 py-4 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
-              >
-                Próxima Etapa <ChevronRight />
-              </button>
-            </div>
-          </div>
-        )}
+               <div>
+                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Pulso (bpm)</label>
+                 <div className="relative">
+                   <Heart className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                   <input 
+                      type="number" 
+                      className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-brand-red font-bold text-slate-700"
+                      placeholder="Ex: 72"
+                      value={vitals.pulse}
+                      onChange={e => setVitals({...vitals, pulse: e.target.value})}
+                   />
+                 </div>
+               </div>
+             </div>
+           </div>
+        </div>
 
-        {currentStep === 'questions' && (
-          <div className="animate-fade-in">
-            <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-              <CheckCircle2 className="text-brand-red" />
-              Questionário Obrigatório
-            </h2>
+        <div className="lg:col-span-2">
+          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm h-full flex flex-col">
+             <h2 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
+               <FileText className="text-brand-red" size={20} /> Questionário de Elegibilidade
+             </h2>
 
-            <div className="space-y-6">
-              {QUESTIONS.map((q) => (
-                <div key={q.id} className="p-4 bg-gray-50 border border-gray-100 rounded-xl transition-all hover:border-gray-300">
-                  <p className="font-bold text-slate-800 mb-3 text-lg">{q.text}</p>
-                  
-                  <div className="flex gap-4">
-                    <button 
-                      onClick={() => handleAnswerChange(q.id, 'sim')}
-                      className={`flex-1 py-3 rounded-lg font-bold border transition-all ${answers[q.id]?.value === 'sim' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white border-gray-200 text-slate-500 hover:bg-gray-100'}`}
-                    >
-                      Sim
-                    </button>
-                    <button 
-                      onClick={() => handleAnswerChange(q.id, 'nao')}
-                      className={`flex-1 py-3 rounded-lg font-bold border transition-all ${answers[q.id]?.value === 'nao' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white border-gray-200 text-slate-500 hover:bg-gray-100'}`}
-                    >
-                      Não
-                    </button>
-                  </div>
+             <div className="flex-1 space-y-4">
+               {TRIAGE_QUESTIONS.map((question) => {
+                 const currentAnswer = answers[question.id];
+                 const isRisk = currentAnswer !== undefined && currentAnswer !== question.expectedAnswer;
 
-                  {answers[q.id]?.value === 'sim' && (q.id === 'q3' || q.id === 'q4') && (
-                    <div className="mt-4 animate-fade-in-up">
-                      <label className="block text-sm font-bold text-slate-700 mb-1">Quando ocorreu?</label>
-                      <input 
-                        type="date" 
-                        className="w-full p-3 border border-gray-200 rounded-lg outline-none focus:border-brand-red"
-                        onChange={e => handleDateChange(q.id, e.target.value)}
-                      />
-                      <p className="text-xs text-amber-600 mt-1 font-bold flex items-center gap-1">
-                        <AlertTriangle size={12} /> Cuidado: Verifique a data corretamente.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                 return (
+                   <div key={question.id} className={`p-4 rounded-xl border transition-all ${isRisk ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-100'}`}>
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <p className={`text-sm font-medium flex-1 ${isRisk ? 'text-red-800' : 'text-slate-700'}`}>
+                          {question.text}
+                        </p>
+                        
+                        <div className="flex gap-2 min-w-[140px]">
+                           <button 
+                             onClick={() => handleAnswer(question.id, true)}
+                             className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all border ${
+                               currentAnswer === true 
+                                 ? 'bg-slate-800 text-white border-slate-800' 
+                                 : 'bg-white text-slate-500 border-gray-200 hover:bg-gray-100'
+                             }`}
+                           >
+                             SIM
+                           </button>
+                           <button 
+                             onClick={() => handleAnswer(question.id, false)}
+                             className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all border ${
+                               currentAnswer === false 
+                                 ? 'bg-slate-800 text-white border-slate-800' 
+                                 : 'bg-white text-slate-500 border-gray-200 hover:bg-gray-100'
+                             }`}
+                           >
+                             NÃO
+                           </button>
+                        </div>
+                      </div>
+                      {isRisk && (
+                         <div className="mt-2 text-xs text-red-600 font-bold flex items-center gap-1 animate-pulse-slow">
+                            <AlertOctagon size={12} />
+                            {question.failureMessage}
+                         </div>
+                      )}
+                   </div>
+                 );
+               })}
+             </div>
 
-            <div className="mt-10 flex justify-between">
-              <button 
-                onClick={() => setCurrentStep('vitals')}
-                className="px-6 py-3 text-slate-500 font-bold hover:bg-gray-100 rounded-xl transition-all"
-              >
-                Voltar
-              </button>
-              <button 
-                onClick={validateAnswers}
-                disabled={Object.keys(answers).length < QUESTIONS.length}
-                className="px-8 py-4 bg-brand-red text-white font-bold rounded-xl hover:bg-red-700 disabled:opacity-50 flex items-center gap-2 transition-all shadow-lg shadow-brand-red/20"
-              >
-                <Save size={18} /> Finalizar Triagem
-              </button>
-            </div>
-          </div>
-        )}
-
-        {currentStep === 'result' && result && (
-          <div className="animate-fade-in text-center py-8">
-            {result.status === 'apto' ? (
-              <div className="flex flex-col items-center">
-                <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6 animate-scale-up">
-                  <CheckCircle2 size={64} />
-                </div>
-                <h2 className="text-3xl font-bold text-slate-800 mb-2">Doador Apto!</h2>
-                <p className="text-slate-500 max-w-md mx-auto mb-8">
-                  A triagem foi concluída com sucesso. O doador pode ser encaminhado para a Sala de Coleta.
-                </p>
-                <div className="flex gap-4">
-                  <button 
-                    onClick={() => navigate('/dashboard/coleta')}
-                    className="px-8 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all"
-                  >
-                    Ir para Sala de Coleta
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center">
-                <div className="w-24 h-24 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-6 animate-scale-up">
-                  <AlertOctagon size={64} />
-                </div>
-                <h2 className="text-3xl font-bold text-slate-800 mb-2">Doador Inapto</h2>
-                <div className="w-full max-w-md bg-red-50 border border-red-100 rounded-xl p-6 mb-8 text-left">
-                  <div className="mb-4">
-                    <p className="text-xs font-bold text-red-400 uppercase">Motivo</p>
-                    <p className="font-bold text-red-800 text-lg">{result.reason}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-red-400 uppercase">Retorno</p>
-                    <p className="font-bold text-red-800 text-lg flex items-center gap-2">
-                      <Calendar size={18} />
-                      {result.returnDate}
-                    </p>
-                  </div>
-                </div>
+             <div className="pt-6 mt-6 border-t border-gray-100 flex justify-end">
                 <button 
-                  onClick={() => navigate('/dashboard/doadores')}
-                  className="px-8 py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-700 transition-all"
+                  onClick={handleFinishTriage}
+                  className="px-8 py-3 bg-brand-red text-white font-bold rounded-xl hover:bg-red-700 shadow-lg shadow-brand-red/20 flex items-center gap-2 transition-all"
                 >
-                  Concluir
+                  <Save size={18} /> Finalizar Triagem
                 </button>
-              </div>
-            )}
+             </div>
           </div>
-        )}
-
+        </div>
       </div>
 
-      {potentialBlock && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-scale-up border-2 border-red-100">
-            <div className="flex items-center gap-3 text-red-600 mb-4">
-              <AlertOctagon size={32} />
-              <h3 className="text-xl font-bold">Confirmação de Bloqueio</h3>
-            </div>
-            
-            <p className="text-slate-600 mb-4">
-              O sistema detectou um impedimento com base nas respostas:
-            </p>
-            
-            <div className="bg-red-50 p-4 rounded-xl border border-red-100 mb-6">
-              <p className="font-bold text-red-800">{potentialBlock.reason}</p>
-              <p className="text-sm text-red-600 mt-1">
-                Data de liberação calculada: <strong>{potentialBlock.date}</strong>
-              </p>
-            </div>
+      {showResultModal && (
+        <div className="fixed inset-0 z-50  flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-up">
+             <div className={`p-6 text-center ${isApproved ? 'bg-emerald-50' : 'bg-red-50'}`}>
+                <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${isApproved ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                   {isApproved ? <CheckCircle2 size={40} /> : <XCircle size={40} />}
+                </div>
+                <h2 className={`text-2xl font-bold ${isApproved ? 'text-emerald-800' : 'text-red-800'}`}>
+                  {isApproved ? 'Doador Apto!' : 'Doador Inapto'}
+                </h2>
+                <p className={`text-sm mt-1 ${isApproved ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {isApproved ? 'Encaminhar para a Sala de Coleta.' : 'Bloqueio temporário ou definitivo.'}
+                </p>
+             </div>
 
-            <p className="text-sm text-slate-500 mb-6">
-              Verifique se a data ou a resposta foi digitada corretamente. Deseja confirmar o bloqueio deste doador?
-            </p>
+             <div className="p-6">
+                {!isApproved && (
+                  <div className="mb-6">
+                    <p className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+                      <AlertTriangle size={16} className="text-amber-500" /> Motivos da Inaptidão:
+                    </p>
+                    <ul className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                       {rejectionReasons.map((reason, index) => (
+                         <li key={index} className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-100 flex items-start gap-2">
+                            <span className="mt-1.5 w-1.5 h-1.5 bg-red-500 rounded-full shrink-0" />
+                            {reason}
+                         </li>
+                       ))}
+                    </ul>
+                  </div>
+                )}
 
-            <div className="flex gap-3">
-              <button 
-                onClick={cancelBlock}
-                className="flex-1 py-3 bg-white border border-gray-300 text-slate-700 font-bold rounded-xl hover:bg-gray-50 transition-colors"
-              >
-                Revisar Resposta
-              </button>
-              <button 
-                onClick={confirmBlock}
-                className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 shadow-lg shadow-red-200 transition-colors"
-              >
-                Confirmar Bloqueio
-              </button>
-            </div>
+                <div className="flex gap-3">
+                   <button 
+                     onClick={() => setShowResultModal(false)}
+                     className="flex-1 py-3 text-slate-500 font-bold hover:bg-gray-100 rounded-xl transition-colors"
+                   >
+                     Voltar / Corrigir
+                   </button>
+                   <button 
+                     onClick={handleConfirmResult}
+                     className={`flex-1 py-3 font-bold text-white rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${isApproved ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-800 hover:bg-slate-700'}`}
+                   >
+                     {isApproved ? <>Iniciar Coleta <ArrowRight size={18} /></> : 'Registrar Inaptidão'}
+                   </button>
+                </div>
+             </div>
           </div>
         </div>
       )}
