@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Plus, User, Shield, Key, Edit, Trash2, CheckCircle2, X } from 'lucide-react';
+
+const API_URL = 'http://localhost:5000/api';
 
 interface SystemUser {
   id: string;
@@ -9,14 +11,9 @@ interface SystemUser {
   status: 'ativo' | 'inativo';
 }
 
-const MOCK_USERS: SystemUser[] = [
-  { id: '1', name: 'Ricardo Oliveira', email: 'ricardo@hemocentro.com', role: 'admin', status: 'ativo' },
-  { id: '2', name: 'Júlia Santos', email: 'julia@hemocentro.com', role: 'operacional', status: 'ativo' },
-  { id: '3', name: 'Marcos Costa', email: 'marcos@hemocentro.com', role: 'biologo', status: 'inativo' },
-];
-
 export function AdminUsersPage() {
-  const [users, setUsers] = useState<SystemUser[]>(MOCK_USERS);
+  const [users, setUsers] = useState<SystemUser[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<SystemUser | null>(null);
@@ -27,6 +24,24 @@ export function AdminUsersPage() {
     role: 'operacional',
     password: '' 
   });
+
+  const fetchUsers = () => {
+    setIsLoading(true);
+    fetch(`${API_URL}/usuarios`)
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        setUsers(data);
+        setIsLoading(false);
+      })
+      .catch(err => {
+        console.error('Erro ao buscar usuários:', err);
+        setIsLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   const filteredUsers = users.filter(u => 
     u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -44,27 +59,42 @@ export function AdminUsersPage() {
     setIsModalOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name || !formData.email) return;
 
-    if (editingUser) {
-      setUsers(users.map(u => u.id === editingUser.id ? { ...u, ...formData } as SystemUser : u));
-    } else {
-      const newUser: SystemUser = {
-        id: Math.random().toString(),
-        name: formData.name,
-        email: formData.email,
-        role: formData.role as any,
-        status: 'ativo'
-      };
-      setUsers([...users, newUser]);
+    try {
+      if (editingUser) {
+        const res = await fetch(`${API_URL}/usuarios/${editingUser.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+        if (res.ok) fetchUsers();
+      } else {
+        const res = await fetch(`${API_URL}/usuarios`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+        if (res.ok) fetchUsers();
+      }
+      setIsModalOpen(false);
+    } catch (err) {
+      console.error('Erro ao salvar usuário:', err);
+      alert('Erro ao salvar usuário. Tente novamente mais tarde.');
     }
-    setIsModalOpen(false);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Tem certeza que deseja desativar este usuário?')) {
-      setUsers(users.map(u => u.id === id ? { ...u, status: 'inativo' } : u));
+      try {
+        const res = await fetch(`${API_URL}/usuarios/${id}`, {
+          method: 'DELETE'
+        });
+        if (res.ok) fetchUsers();
+      } catch (err) {
+        console.error('Erro ao excluir usuário:', err);
+      }
     }
   };
 
@@ -109,50 +139,64 @@ export function AdminUsersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-sm">
-              {filteredUsers.map((user) => (
-                <tr key={user.id} className="group hover:bg-slate-50 transition-colors">
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold">
-                        {user.name.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-700">{user.name}</p>
-                        <p className="text-xs text-slate-400">{user.email}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border ${user.role === 'admin' ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-slate-50 text-slate-600 border-slate-100'}`}>
-                      {user.role === 'admin' ? <Shield size={12} /> : <User size={12} />}
-                      {user.role.toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${user.status === 'ativo' ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {user.status === 'ativo' ? 'Ativo' : 'Inativo'}
-                    </span>
-                  </td>
-                  <td className="p-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button 
-                        onClick={() => handleOpenModal(user)}
-                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Editar / Alterar Senha"
-                      >
-                        <Edit size={16} />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(user.id)}
-                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Desativar Acesso"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={4} className="p-8 text-center text-slate-400">
+                    Carregando usuários...
                   </td>
                 </tr>
-              ))}
+              ) : filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="p-8 text-center text-slate-400">
+                    Nenhum usuário encontrado.
+                  </td>
+                </tr>
+              ) : (
+                filteredUsers.map((user) => (
+                  <tr key={user.id} className="group hover:bg-slate-50 transition-colors">
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold">
+                          {user.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-700">{user.name}</p>
+                          <p className="text-xs text-slate-400">{user.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border ${user.role === 'admin' ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-slate-50 text-slate-600 border-slate-100'}`}>
+                        {user.role === 'admin' ? <Shield size={12} /> : <User size={12} />}
+                        {user.role.toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${user.status === 'ativo' ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                        {user.status === 'ativo' ? 'Ativo' : 'Inativo'}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button 
+                          onClick={() => handleOpenModal(user)}
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Editar / Alterar Senha"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(user.id)}
+                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Desativar Acesso"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

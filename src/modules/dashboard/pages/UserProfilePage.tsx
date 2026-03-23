@@ -1,13 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User, Shield, Lock, Save, CheckCircle2, AlertCircle, Headphones, Mail, MessageCircle } from 'lucide-react';
 
+const API_URL = 'http://localhost:5000/api';
+
 export function UserProfilePage() {
-  const user = {
-    name: 'Ricardo Oliveira',
-    email: 'ricardo@hemocentro.com',
-    role: 'Administrador Superior',
-    unit: 'Hemocentro Regional (Sede)'
-  };
+  const [user, setUser] = useState<{name: string, email: string, role: string, unit: string} | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    fetch(`${API_URL}/usuarios/me`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data) {
+          setUser(data);
+        } else {
+          setUser({ name: '', email: '', role: '', unit: '' });
+        }
+        setIsLoading(false);
+      })
+      .catch(err => {
+        console.error('Erro ao buscar perfil:', err);
+        setUser({ name: '', email: '', role: '', unit: '' });
+        setIsLoading(false);
+      });
+  }, []);
 
   const [passwords, setPasswords] = useState({
     current: '',
@@ -17,7 +34,7 @@ export function UserProfilePage() {
 
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
 
-  const handleUpdatePassword = () => {
+  const handleUpdatePassword = async () => {
     setMessage(null);
 
     if (!passwords.current || !passwords.new || !passwords.confirm) {
@@ -35,14 +52,34 @@ export function UserProfilePage() {
       return;
     }
 
-    if (passwords.current !== '123456') {
-      setMessage({ type: 'error', text: 'A senha atual está incorreta.' });
-      return;
-    }
+    try {
+      const response = await fetch(`${API_URL}/usuarios/senha`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          senha_atual: passwords.current,
+          nova_senha: passwords.new
+        })
+      });
 
-    setMessage({ type: 'success', text: 'Senha atualizada com sucesso!' });
-    setPasswords({ current: '', new: '', confirm: '' });
+      if (!response.ok) {
+        throw new Error('A senha atual está incorreta ou ocorreu um erro no servidor.');
+      }
+
+      setMessage({ type: 'success', text: 'Senha atualizada com sucesso!' });
+      setPasswords({ current: '', new: '', confirm: '' });
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || 'Erro ao atualizar senha.' });
+    }
   };
+
+  if (isLoading || !user) {
+    return (
+      <div className="flex justify-center items-center py-20 text-slate-500">
+        Carregando perfil...
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in-up">

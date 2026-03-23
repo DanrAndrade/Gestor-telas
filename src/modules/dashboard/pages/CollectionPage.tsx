@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User, Clock, CheckCircle2, AlertTriangle, Syringe, Printer, X, FileWarning, Tag, Settings2, Droplets } from 'lucide-react';
+
+const API_URL = 'http://localhost:5000/api';
 
 interface DonorInQueue {
   id: string;
@@ -9,14 +11,23 @@ interface DonorInQueue {
   weight: number;
 }
 
-const MOCK_QUEUE: DonorInQueue[] = [
-  { id: '1', name: 'João Silva', bloodType: 'O+', triageTime: '10:15', weight: 75 },
-  { id: '2', name: 'Maria Oliveira', bloodType: 'A-', triageTime: '10:30', weight: 62 },
-  { id: '3', name: 'Pedro Santos', bloodType: 'Unknown', triageTime: '10:45', weight: 80 },
-];
-
 export function CollectionPage() {
-  const [queue, setQueue] = useState<DonorInQueue[]>(MOCK_QUEUE);
+  const [queue, setQueue] = useState<DonorInQueue[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    fetch(`${API_URL}/coleta/agendamentos`)
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        setQueue(data);
+        setIsLoading(false);
+      })
+      .catch(err => {
+        console.error('Erro ao buscar fila:', err);
+        setIsLoading(false);
+      });
+  }, []);
   const [selectedDonor, setSelectedDonor] = useState<DonorInQueue | null>(null);
   
   // Estado atualizado para refletir a ficha oficial
@@ -71,13 +82,29 @@ export function CollectionPage() {
     }
 
     setIsProcessing(true);
-    setTimeout(() => {
+    
+    fetch(`${API_URL}/coleta/registro`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        donorId: selectedDonor?.id,
+        ...collectionData,
+        status: 'sucesso'
+      })
+    })
+    .then(res => {
+      if (!res.ok) throw new Error('Falha no registro');
       setSuccessMessage(`Coleta de ${collectionData.volume}ml registrada com sucesso!\nBolsa vinculada às etiquetas ${collectionData.isbtLabel}.`);
       setQueue(queue.filter(d => d.id !== selectedDonor?.id));
       setSelectedDonor(null);
       setIsProcessing(false);
       setTimeout(() => setSuccessMessage(''), 3000);
-    }, 1500);
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Erro ao registrar coleta.');
+      setIsProcessing(false);
+    });
   };
 
   const handleIssue = () => {
@@ -85,14 +112,30 @@ export function CollectionPage() {
     setIsProcessing(true);
     setShowIssueModal(false);
     
-    setTimeout(() => {
+    fetch(`${API_URL}/coleta/registro`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        donorId: selectedDonor?.id,
+        ...collectionData,
+        issue: issueData,
+        status: 'intercorrencia'
+      })
+    })
+    .then(res => {
+      if (!res.ok) throw new Error('Falha no registro');
       setSuccessMessage(`Intercorrência registrada: ${issueData.type}.\nInsumos relatados e doador encaminhado para observação.`);
       setQueue(queue.filter(d => d.id !== selectedDonor?.id));
       setSelectedDonor(null);
       setIssueData({ type: '', observation: '', consumedMaterials: '' });
       setIsProcessing(false);
       setTimeout(() => setSuccessMessage(''), 3000);
-    }, 1500);
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Erro ao registrar intercorrência.');
+      setIsProcessing(false);
+    });
   };
 
   return (
@@ -119,7 +162,12 @@ export function CollectionPage() {
             </h2>
           </div>
           <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto custom-scrollbar">
-            {queue.length === 0 ? (
+            {isLoading ? (
+               <div className="p-8 text-center text-slate-400 text-sm flex flex-col items-center gap-2">
+                 <AlertTriangle className="animate-spin text-blue-500 w-6 h-6" />
+                 Carregando fila...
+               </div>
+            ) : queue.length === 0 ? (
                <div className="p-8 text-center text-slate-400 text-sm">Ninguém na fila.</div>
             ) : (
               queue.map(donor => (

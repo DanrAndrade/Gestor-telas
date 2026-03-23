@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Filter, Calendar, ShieldAlert, FileText, User, ArrowDownUp, Info } from 'lucide-react';
+
+const API_URL = 'http://localhost:5000/api';
 
 interface AuditLog {
   id: string;
@@ -12,18 +14,25 @@ interface AuditLog {
   category: 'security' | 'operation' | 'modification' | 'critical';
 }
 
-const MOCK_LOGS: AuditLog[] = [
-  { id: '1', timestamp: '2024-02-15T14:30:00', userId: '1', userName: 'Ricardo Oliveira', userRole: 'Admin', action: 'Descarte de Bolsa', details: 'Bolsa W1234 56799 descartada. Motivo: Hemólise.', category: 'critical' },
-  { id: '2', timestamp: '2024-02-15T10:15:00', userId: '2', userName: 'Júlia Santos', userRole: 'Operacional', action: 'Nova Coleta', details: 'Registro de bolsa W1234 56800. Doador D-9988.', category: 'operation' },
-  { id: '3', timestamp: '2024-02-14T18:00:00', userId: '1', userName: 'Ricardo Oliveira', userRole: 'Admin', action: 'Alteração de Usuário', details: 'Alterou permissões do usuário Marcos Costa.', category: 'security' },
-  { id: '4', timestamp: '2024-02-14T09:00:00', userId: '3', userName: 'Marcos Costa', userRole: 'Biólogo', action: 'Liberação de Lote', details: 'Lote L-2024-05 liberado para distribuição.', category: 'operation' },
-  { id: '5', timestamp: '2024-02-13T16:45:00', userId: '2', userName: 'Júlia Santos', userRole: 'Operacional', action: 'Edição Doador', details: 'Atualizou endereço do doador Ana Beatriz.', category: 'modification' },
-];
-
 export function AdminAuditPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('');
-  const [logs] = useState<AuditLog[]>(MOCK_LOGS);
+  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    fetch(`${API_URL}/auditoria/logs`)
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        setLogs(data);
+        setIsLoading(false);
+      })
+      .catch(err => {
+        console.error('Erro ao buscar logs de auditoria:', err);
+        setIsLoading(false);
+      });
+  }, []);
 
   const filteredLogs = logs.filter(log => {
     const matchesSearch = log.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -90,43 +99,51 @@ export function AdminAuditPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-sm">
-              {filteredLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="p-4 text-slate-600 whitespace-nowrap font-mono text-xs">
-                    {new Date(log.timestamp).toLocaleString('pt-BR')}
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold text-xs">
-                        {log.userName.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-700 text-xs">{log.userName}</p>
-                        <p className="text-[10px] text-slate-400 uppercase">{log.userRole}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border ${getCategoryColor(log.category)}`}>
-                      {log.category === 'critical' && <ShieldAlert size={12} />}
-                      {log.category === 'operation' && <FileText size={12} />}
-                      {log.category === 'security' && <Info size={12} />}
-                      {log.action}
-                    </span>
-                  </td>
-                  <td className="p-4 text-slate-600 max-w-md truncate" title={log.details}>
-                    {log.details}
+              {isLoading ? (
+                <tr>
+                  <td colSpan={4} className="p-12 text-center text-slate-400">
+                    Carregando registros de auditoria...
                   </td>
                 </tr>
-              ))}
+              ) : filteredLogs.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="p-12 text-center text-slate-400">
+                    Nenhum registro encontrado nos logs.
+                  </td>
+                </tr>
+              ) : (
+                filteredLogs.map((log) => (
+                  <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="p-4 text-slate-600 whitespace-nowrap font-mono text-xs">
+                      {new Date(log.timestamp).toLocaleString('pt-BR')}
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold text-xs">
+                          {log.userName.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-700 text-xs">{log.userName}</p>
+                          <p className="text-[10px] text-slate-400 uppercase">{log.userRole}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border ${getCategoryColor(log.category)}`}>
+                        {log.category === 'critical' && <ShieldAlert size={12} />}
+                        {log.category === 'operation' && <FileText size={12} />}
+                        {log.category === 'security' && <Info size={12} />}
+                        {log.action}
+                      </span>
+                    </td>
+                    <td className="p-4 text-slate-600 max-w-md truncate" title={log.details}>
+                      {log.details}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
-          
-          {filteredLogs.length === 0 && (
-            <div className="p-12 text-center text-slate-400">
-              <p>Nenhum registro encontrado nos logs.</p>
-            </div>
-          )}
         </div>
       </div>
     </div>

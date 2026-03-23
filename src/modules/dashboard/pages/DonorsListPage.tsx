@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Filter, Edit, Clock, X, Calendar, User, CheckCircle2, Activity, AlertCircle, Download, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
+const API_URL = 'http://localhost:5000/api';
 
 interface Donor {
   id: string;
@@ -14,13 +16,6 @@ interface Donor {
   age: number;
 }
 
-const MOCK_DONORS: Donor[] = [
-  { id: '1', code: 'D-2024-001', name: 'Ana Beatriz Souza', bloodType: 'A-', status: 'apto', lastDonation: '2023-10-15', gender: 'Feminino', age: 28 },
-  { id: '2', code: 'D-2024-002', name: 'Carlos Eduardo Silva', bloodType: 'O+', status: 'inapto', lastDonation: '2024-01-20', gender: 'Masculino', age: 35 },
-  { id: '3', code: 'D-2024-003', name: 'Mariana Ximenes', socialName: 'Mari X', bloodType: 'B+', status: 'apto', lastDonation: '2023-05-10', gender: 'Feminino', age: 42 },
-  { id: '4', code: 'D-2024-004', name: 'Jorge Amado Filho', bloodType: 'AB+', status: 'bloqueado', lastDonation: '2022-11-01', gender: 'Masculino', age: 50 },
-];
-
 export function DonorsListPage() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
@@ -28,10 +23,27 @@ export function DonorsListPage() {
   
   const [selectedHistoryDonor, setSelectedHistoryDonor] = useState<Donor | null>(null);
 
-  const filteredDonors = MOCK_DONORS.filter(donor => {
+  const [donors, setDonors] = useState<Donor[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    fetch(`${API_URL}/doadores`)
+      .then(res => res.json())
+      .then(data => {
+        setDonors(data);
+        setIsLoading(false);
+      })
+      .catch(err => {
+        console.error('Erro ao buscar doadores:', err);
+        setIsLoading(false);
+      });
+  }, []);
+
+  const filteredDonors = donors.filter(donor => {
     const matchesSearch = donor.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          donor.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          donor.bloodType.toLowerCase().includes(searchTerm.toLowerCase());
+                          (donor.code && donor.code.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                          (donor.bloodType && donor.bloodType.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesStatus = filterStatus === 'todos' || donor.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
@@ -180,11 +192,16 @@ export function DonorsListPage() {
             </tbody>
           </table>
           
-          {filteredDonors.length === 0 && (
+          {isLoading ? (
+            <div className="p-12 text-center text-slate-400 flex flex-col items-center justify-center gap-3">
+              <Activity className="animate-spin text-brand-red w-8 h-8" />
+              <p className="font-medium">Carregando dados...</p>
+            </div>
+          ) : filteredDonors.length === 0 ? (
             <div className="p-12 text-center text-slate-400">
               <p>Nenhum doador encontrado.</p>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Save, AlertTriangle, CheckCircle2, RotateCcw, Sliders } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Save, AlertTriangle, CheckCircle2, RotateCcw, Sliders, Activity } from 'lucide-react';
 
 interface BloodLevelConfig {
   type: string;
@@ -19,10 +19,32 @@ const INITIAL_CONFIG: BloodLevelConfig[] = [
   { type: 'O-', critical: 20, warning: 40, ideal: 80 },
 ];
 
+const API_URL = 'http://localhost:5000/api';
+
 export function StockConfigurationPage() {
-  const [configs, setConfigs] = useState<BloodLevelConfig[]>(INITIAL_CONFIG);
+  const [configs, setConfigs] = useState<BloodLevelConfig[]>([]);
+  const [originalConfigs, setOriginalConfigs] = useState<BloodLevelConfig[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [hasChanges, setHasChanges] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+
+  useEffect(() => {
+    setIsLoading(true);
+    fetch(`${API_URL}/estoque/configuracoes`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        const loadedConfigs = (data && data.length > 0) ? data : INITIAL_CONFIG;
+        setConfigs(loadedConfigs);
+        setOriginalConfigs(loadedConfigs);
+        setIsLoading(false);
+      })
+      .catch(err => {
+        console.error('Erro ao buscar configurações:', err);
+        setConfigs(INITIAL_CONFIG);
+        setOriginalConfigs(INITIAL_CONFIG);
+        setIsLoading(false);
+      });
+  }, []);
 
   const handleChange = (type: string, field: keyof BloodLevelConfig, value: number) => {
     setConfigs(configs.map(cfg => 
@@ -38,14 +60,30 @@ export function StockConfigurationPage() {
       return;
     }
 
-    setShowSuccess(true);
-    setHasChanges(false);
-    setTimeout(() => setShowSuccess(false), 2500);
+    fetch(`${API_URL}/estoque/configuracoes`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(configs)
+    })
+    .then(res => {
+      if (!res.ok) throw new Error('Falha ao salvar');
+      return res.json();
+    })
+    .then(() => {
+      setShowSuccess(true);
+      setHasChanges(false);
+      setOriginalConfigs(configs);
+      setTimeout(() => setShowSuccess(false), 2500);
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Erro ao salvar configurações.');
+    });
   };
 
   const handleReset = () => {
     if (confirm('Descartar alterações não salvas?')) {
-      setConfigs(INITIAL_CONFIG);
+      setConfigs(originalConfigs);
       setHasChanges(false);
     }
   };
@@ -78,87 +116,94 @@ export function StockConfigurationPage() {
         </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex items-start gap-4">
-           <div className="bg-blue-100 p-2 rounded-lg text-blue-600">
-             <Sliders size={24} />
-           </div>
-           <div>
-             <h3 className="font-bold text-slate-800">Como funciona?</h3>
-             <p className="text-sm text-slate-500 max-w-2xl leading-relaxed mt-1">
-               Esses valores alimentam os gráficos e alertas do sistema.
-               <br />
-               <span className="text-red-600 font-bold">• Crítico:</span> Estoque abaixo desse valor gera alertas de emergência.
-               <br />
-               <span className="text-amber-600 font-bold">• Alerta:</span> Ponto de pedido (iniciar campanhas).
-               <br />
-               <span className="text-emerald-600 font-bold">• Ideal:</span> Meta operacional (100% da capacidade).
-             </p>
-           </div>
+      {isLoading ? (
+        <div className="py-12 bg-white border border-gray-200 rounded-2xl text-center text-slate-400">
+          <Activity className="animate-spin text-brand-red w-8 h-8 mx-auto mb-2" />
+          <p>Carregando parâmetros...</p>
         </div>
+      ) : (
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex items-start gap-4">
+            <div className="bg-blue-100 p-2 rounded-lg text-blue-600">
+              <Sliders size={24} />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-800">Como funciona?</h3>
+              <p className="text-sm text-slate-500 max-w-2xl leading-relaxed mt-1">
+                Esses valores alimentam os gráficos e alertas do sistema.
+                <br />
+                <span className="text-red-600 font-bold">• Crítico:</span> Estoque abaixo desse valor gera alertas de emergência.
+                <br />
+                <span className="text-amber-600 font-bold">• Alerta:</span> Ponto de pedido (iniciar campanhas).
+                <br />
+                <span className="text-emerald-600 font-bold">• Ideal:</span> Meta operacional (100% da capacidade).
+              </p>
+            </div>
+          </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-100 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                <th className="p-4 pl-8">Tipo Sanguíneo</th>
-                <th className="p-4 text-center text-red-600">Nível Crítico (Min)</th>
-                <th className="p-4 text-center text-amber-600">Nível de Alerta</th>
-                <th className="p-4 text-center text-emerald-600">Meta Ideal (Max)</th>
-                <th className="p-4">Visualização</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 text-sm">
-              {configs.map((config) => (
-                <tr key={config.type} className="hover:bg-slate-50 transition-colors">
-                  <td className="p-4 pl-8">
-                    <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center font-bold text-slate-700 border border-slate-200">
-                      {config.type}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center justify-center">
-                       <input 
-                         type="number" 
-                         className="w-24 p-2 text-center font-bold text-red-700 bg-red-50 border border-red-100 rounded-lg outline-none focus:ring-2 focus:ring-red-200"
-                         value={config.critical}
-                         onChange={(e) => handleChange(config.type, 'critical', Number(e.target.value))}
-                       />
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center justify-center">
-                       <input 
-                         type="number" 
-                         className="w-24 p-2 text-center font-bold text-amber-700 bg-amber-50 border border-amber-100 rounded-lg outline-none focus:ring-2 focus:ring-amber-200"
-                         value={config.warning}
-                         onChange={(e) => handleChange(config.type, 'warning', Number(e.target.value))}
-                       />
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center justify-center">
-                       <input 
-                         type="number" 
-                         className="w-24 p-2 text-center font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg outline-none focus:ring-2 focus:ring-emerald-200"
-                         value={config.ideal}
-                         onChange={(e) => handleChange(config.type, 'ideal', Number(e.target.value))}
-                       />
-                    </div>
-                  </td>
-                  <td className="p-4 w-48">
-                    <div className="h-2 w-full bg-gray-100 rounded-full flex overflow-hidden">
-                       <div className="h-full bg-red-500" style={{ width: `${(config.critical / config.ideal) * 100}%` }} title="Zona Crítica" />
-                       <div className="h-full bg-amber-400" style={{ width: `${((config.warning - config.critical) / config.ideal) * 100}%` }} title="Zona de Alerta" />
-                       <div className="h-full bg-emerald-500 flex-1" title="Zona Segura" />
-                    </div>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  <th className="p-4 pl-8">Tipo Sanguíneo</th>
+                  <th className="p-4 text-center text-red-600">Nível Crítico (Min)</th>
+                  <th className="p-4 text-center text-amber-600">Nível de Alerta</th>
+                  <th className="p-4 text-center text-emerald-600">Meta Ideal (Max)</th>
+                  <th className="p-4">Visualização</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-100 text-sm">
+                {configs.map((config) => (
+                  <tr key={config.type} className="hover:bg-slate-50 transition-colors">
+                    <td className="p-4 pl-8">
+                      <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center font-bold text-slate-700 border border-slate-200">
+                        {config.type}
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center justify-center">
+                        <input 
+                          type="number" 
+                          className="w-24 p-2 text-center font-bold text-red-700 bg-red-50 border border-red-100 rounded-lg outline-none focus:ring-2 focus:ring-red-200"
+                          value={config.critical}
+                          onChange={(e) => handleChange(config.type, 'critical', Number(e.target.value))}
+                        />
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center justify-center">
+                        <input 
+                          type="number" 
+                          className="w-24 p-2 text-center font-bold text-amber-700 bg-amber-50 border border-amber-100 rounded-lg outline-none focus:ring-2 focus:ring-amber-200"
+                          value={config.warning}
+                          onChange={(e) => handleChange(config.type, 'warning', Number(e.target.value))}
+                        />
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center justify-center">
+                        <input 
+                          type="number" 
+                          className="w-24 p-2 text-center font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg outline-none focus:ring-2 focus:ring-emerald-200"
+                          value={config.ideal}
+                          onChange={(e) => handleChange(config.type, 'ideal', Number(e.target.value))}
+                        />
+                      </div>
+                    </td>
+                    <td className="p-4 w-48">
+                      <div className="h-2 w-full bg-gray-100 rounded-full flex overflow-hidden">
+                        <div className="h-full bg-red-500" style={{ width: `${(config.critical / config.ideal) * 100}%` }} title="Zona Crítica" />
+                        <div className="h-full bg-amber-400" style={{ width: `${((config.warning - config.critical) / config.ideal) * 100}%` }} title="Zona de Alerta" />
+                        <div className="h-full bg-emerald-500 flex-1" title="Zona Segura" />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
       {showSuccess && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">

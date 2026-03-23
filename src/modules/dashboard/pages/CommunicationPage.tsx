@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Send, Users, Filter, MessageSquare, CheckCircle2, AlertCircle } from 'lucide-react';
+
+const API_URL = 'http://localhost:5000/api';
 
 export function CommunicationPage() {
   const [subject, setSubject] = useState('');
@@ -8,6 +10,8 @@ export function CommunicationPage() {
   const [onlyApt, setOnlyApt] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+
+  const [audienceCount, setAudienceCount] = useState(0);
 
   const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
@@ -19,20 +23,53 @@ export function CommunicationPage() {
     }
   };
 
-  const audienceCount = selectedBloodTypes.length === 0 
-    ? 0 
-    : Math.floor(Math.random() * 500) + 50; 
+  useEffect(() => {
+    if (selectedBloodTypes.length === 0) {
+      setAudienceCount(0);
+      return;
+    }
+    const params = new URLSearchParams();
+    selectedBloodTypes.forEach(type => params.append('tipos', type));
+    params.append('somenteAptos', onlyApt.toString());
 
-  const handleSend = () => {
+    fetch(`${API_URL}/comunicacao/audiencia?${params.toString()}`)
+      .then(res => res.ok ? res.json() : { total: 0 })
+      .then(data => setAudienceCount(data.total || 0))
+      .catch((err) => {
+         console.error('Erro ao buscar audiencia:', err);
+         setAudienceCount(0);
+      });
+  }, [selectedBloodTypes, onlyApt]);
+
+  const handleSend = async () => {
     setIsSending(true);
-    setTimeout(() => {
-      setIsSending(false);
+    try {
+      const response = await fetch(`${API_URL}/comunicacao/enviar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assunto: subject,
+          mensagem: message,
+          tiposSanguineos: selectedBloodTypes,
+          somenteAptos: onlyApt
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao disparar campanha');
+      }
+
       setShowSuccess(true);
       setSubject('');
       setMessage('');
       setSelectedBloodTypes([]);
       setTimeout(() => setShowSuccess(false), 3000);
-    }, 2000);
+    } catch (err) {
+      console.error(err);
+      alert('Falha ao enviar campanha. O servidor pode estar indisponível.');
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (

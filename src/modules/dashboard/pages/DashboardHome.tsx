@@ -6,84 +6,17 @@ import { StockDistributionChart } from '../components/StockDistributionChart';
 const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const;
 type BloodType = typeof BLOOD_TYPES[number];
 
-// Dados simulados por Hemocomponente variando para CADA Tipo Sanguíneo
-const HEMOCOMPONENTS_BY_TYPE: Record<BloodType, { name: string, amount: number, target: number, prediction: number }[]> = {
-  'A+': [
-    { name: 'Concentrado de Hemácias', amount: 85, target: 100, prediction: 12 },
-    { name: 'Concentrado de Plaquetas', amount: 15, target: 40, prediction: 2 },
-    { name: 'Plasma Fresco Congelado', amount: 120, target: 150, prediction: 45 },
-    { name: 'Crioprecipitado', amount: 45, target: 50, prediction: 60 },
-    { name: 'Concentrado de Granulócitos', amount: 5, target: 20, prediction: 1 },
-    { name: 'Plasma Isento de Crio', amount: 30, target: 50, prediction: 30 },
-  ],
-  'A-': [
-    { name: 'Concentrado de Hemácias', amount: 12, target: 50, prediction: 3 },
-    { name: 'Concentrado de Plaquetas', amount: 8, target: 20, prediction: 4 },
-    { name: 'Plasma Fresco Congelado', amount: 40, target: 60, prediction: 25 },
-    { name: 'Crioprecipitado', amount: 10, target: 20, prediction: 40 },
-    { name: 'Concentrado de Granulócitos', amount: 0, target: 5, prediction: 0 },
-    { name: 'Plasma Isento de Crio', amount: 15, target: 25, prediction: 20 },
-  ],
-  'B+': [
-    { name: 'Concentrado de Hemácias', amount: 65, target: 80, prediction: 18 },
-    { name: 'Concentrado de Plaquetas', amount: 22, target: 30, prediction: 5 },
-    { name: 'Plasma Fresco Congelado', amount: 90, target: 100, prediction: 35 },
-    { name: 'Crioprecipitado', amount: 30, target: 40, prediction: 50 },
-    { name: 'Concentrado de Granulócitos', amount: 2, target: 10, prediction: 1 },
-    { name: 'Plasma Isento de Crio', amount: 25, target: 35, prediction: 28 },
-  ],
-  'B-': [
-    { name: 'Concentrado de Hemácias', amount: 8, target: 30, prediction: 2 },
-    { name: 'Concentrado de Plaquetas', amount: 4, target: 15, prediction: 1 },
-    { name: 'Plasma Fresco Congelado', amount: 20, target: 40, prediction: 15 },
-    { name: 'Crioprecipitado', amount: 5, target: 15, prediction: 30 },
-    { name: 'Concentrado de Granulócitos', amount: 0, target: 5, prediction: 0 },
-    { name: 'Plasma Isento de Crio', amount: 8, target: 15, prediction: 12 },
-  ],
-  'AB+': [
-    { name: 'Concentrado de Hemácias', amount: 40, target: 50, prediction: 20 },
-    { name: 'Concentrado de Plaquetas', amount: 18, target: 25, prediction: 6 },
-    { name: 'Plasma Fresco Congelado', amount: 150, target: 100, prediction: 80 }, 
-    { name: 'Crioprecipitado', amount: 60, target: 50, prediction: 90 },
-    { name: 'Concentrado de Granulócitos', amount: 1, target: 5, prediction: 2 },
-    { name: 'Plasma Isento de Crio', amount: 45, target: 40, prediction: 50 },
-  ],
-  'AB-': [
-    { name: 'Concentrado de Hemácias', amount: 5, target: 20, prediction: 4 },
-    { name: 'Concentrado de Plaquetas', amount: 2, target: 10, prediction: 1 },
-    { name: 'Plasma Fresco Congelado', amount: 30, target: 40, prediction: 25 },
-    { name: 'Crioprecipitado', amount: 8, target: 15, prediction: 35 },
-    { name: 'Concentrado de Granulócitos', amount: 0, target: 2, prediction: 0 },
-    { name: 'Plasma Isento de Crio', amount: 12, target: 20, prediction: 18 },
-  ],
-  'O+': [
-    { name: 'Concentrado de Hemácias', amount: 180, target: 200, prediction: 8 }, 
-    { name: 'Concentrado de Plaquetas', amount: 35, target: 60, prediction: 3 },
-    { name: 'Plasma Fresco Congelado', amount: 80, target: 120, prediction: 20 },
-    { name: 'Crioprecipitado', amount: 40, target: 60, prediction: 45 },
-    { name: 'Concentrado de Granulócitos', amount: 8, target: 15, prediction: 2 },
-    { name: 'Plasma Isento de Crio', amount: 20, target: 40, prediction: 15 },
-  ],
-  'O-': [
-    { name: 'Concentrado de Hemácias', amount: 15, target: 80, prediction: 1 }, 
-    { name: 'Concentrado de Plaquetas', amount: 5, target: 20, prediction: 1 },
-    { name: 'Plasma Fresco Congelado', amount: 25, target: 50, prediction: 12 },
-    { name: 'Crioprecipitado', amount: 12, target: 25, prediction: 30 },
-    { name: 'Concentrado de Granulócitos', amount: 1, target: 5, prediction: 1 },
-    { name: 'Plasma Isento de Crio', amount: 10, target: 20, prediction: 10 },
-  ],
-};
+const INITIAL_HEMOCOMPONENTS = BLOOD_TYPES.reduce((acc, type) => {
+  acc[type] = [];
+  return acc;
+}, {} as Record<BloodType, { name: string, amount: number, target: number, prediction: number }[]>);
 
-const DEMOGRAPHICS_BY_TYPE: Record<string, { gender: { m: number, f: number }, age: number[] }> = {
-  'A+': { gender: { m: 45, f: 55 }, age: [30, 45, 15, 10] },
-  'A-': { gender: { m: 60, f: 40 }, age: [20, 50, 20, 10] },
-  'B+': { gender: { m: 50, f: 50 }, age: [40, 30, 20, 10] },
-  'B-': { gender: { m: 55, f: 45 }, age: [25, 45, 20, 10] },
-  'AB+': { gender: { m: 40, f: 60 }, age: [35, 40, 15, 10] },
-  'AB-': { gender: { m: 65, f: 35 }, age: [15, 55, 20, 10] },
-  'O+': { gender: { m: 48, f: 52 }, age: [32, 38, 20, 10] },
-  'O-': { gender: { m: 70, f: 30 }, age: [20, 40, 30, 10] },
-};
+const INITIAL_DEMOGRAPHICS = BLOOD_TYPES.reduce((acc, type) => {
+  acc[type] = { gender: { m: 0, f: 0 }, age: [0, 0, 0, 0] };
+  return acc;
+}, {} as Record<BloodType, { gender: { m: number, f: number }, age: number[] }>);
+
+const API_URL = 'http://localhost:5000/api';
 
 function CustomSelect({ 
   options, value, onChange, icon: Icon, align = 'left'
@@ -140,10 +73,32 @@ export function DashboardHome() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
 
-  // Busca os hemocomponentes com base no tipo selecionado na aba
-  const activeHemocomponents = HEMOCOMPONENTS_BY_TYPE[activeTab];
+  const [hemocomponentsByType, setHemocomponentsByType] = useState(INITIAL_HEMOCOMPONENTS);
+  const [demographicsByType, setDemographicsByType] = useState(INITIAL_DEMOGRAPHICS);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const demographics = DEMOGRAPHICS_BY_TYPE[activeTab];
+  useEffect(() => {
+    setIsLoading(true);
+    Promise.all([
+      fetch(`${API_URL}/dashboard/kpis`).then(res => res.ok ? res.json() : null),
+      fetch(`${API_URL}/dashboard/graficos`).then(res => res.ok ? res.json() : null)
+    ])
+    .then(([kpis, graficos]) => {
+      // O backend deve retornar os dados com a estrutura esperada
+      if (kpis) setHemocomponentsByType(kpis);
+      if (graficos) setDemographicsByType(graficos);
+      setIsLoading(false);
+    })
+    .catch(err => {
+      console.error('Erro ao buscar dashboard:', err);
+      setIsLoading(false);
+    });
+  }, [selectedUnit]);
+
+  // Busca os hemocomponentes com base no tipo selecionado na aba
+  const activeHemocomponents = hemocomponentsByType[activeTab] || [];
+
+  const demographics = demographicsByType[activeTab] || { gender: { m: 0, f: 0 }, age: [0, 0, 0, 0] };
   const genderData = [
     { label: 'Masculino', value: demographics.gender.m, color: '#3b82f6' },
     { label: 'Feminino', value: demographics.gender.f, color: '#ec4899' },
@@ -246,110 +201,131 @@ export function DashboardHome() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
-            {activeHemocomponents.map((comp) => {
-              const percentage = Math.min((comp.amount / comp.target) * 100, 100);
-              const isCritical = percentage < 25;
-              const isWarning = percentage >= 25 && percentage < 50;
-              
-              const barColor = isCritical ? 'bg-red-500' : isWarning ? 'bg-amber-500' : 'bg-emerald-500';
-              const bgColor = isCritical ? 'bg-red-50' : isWarning ? 'bg-amber-50' : 'bg-emerald-50';
-              const textColor = isCritical ? 'text-red-700' : isWarning ? 'text-amber-700' : 'text-emerald-700';
+            {isLoading ? (
+               <div className="col-span-full py-12 text-center text-slate-400 flex flex-col items-center gap-3">
+                 <AlertTriangle className="animate-spin text-brand-red w-8 h-8" />
+                 <p className="font-medium">Carregando indicadores...</p>
+               </div>
+            ) : activeHemocomponents.length === 0 ? (
+               <div className="col-span-full py-12 text-center text-slate-400">Nenhum dado disponível.</div>
+            ) : (
+              activeHemocomponents.map((comp) => {
+                const percentage = Math.min((comp.amount / comp.target) * 100, 100);
+                const isCritical = percentage < 25;
+                const isWarning = percentage >= 25 && percentage < 50;
+                
+                const barColor = isCritical ? 'bg-red-500' : isWarning ? 'bg-amber-500' : 'bg-emerald-500';
+                const bgColor = isCritical ? 'bg-red-50' : isWarning ? 'bg-amber-50' : 'bg-emerald-50';
+                const textColor = isCritical ? 'text-red-700' : isWarning ? 'text-amber-700' : 'text-emerald-700';
 
-              return (
-                <div key={comp.name} className="p-5 rounded-2xl border border-gray-100 hover:shadow-md transition-shadow bg-white">
-                   <div className="flex justify-between items-start mb-4">
-                     <div>
-                       <h3 className="text-sm font-bold text-slate-700 w-40 truncate" title={comp.name}>{comp.name}</h3>
-                       <div className="flex items-baseline gap-1 mt-1">
-                          <span className="text-2xl font-extrabold text-slate-800">{comp.amount}</span>
-                          <span className="text-xs text-slate-400 font-medium">/ {comp.target} un</span>
+                return (
+                  <div key={comp.name} className="p-5 rounded-2xl border border-gray-100 hover:shadow-md transition-shadow bg-white">
+                     <div className="flex justify-between items-start mb-4">
+                       <div>
+                         <h3 className="text-sm font-bold text-slate-700 w-40 truncate" title={comp.name}>{comp.name}</h3>
+                         <div className="flex items-baseline gap-1 mt-1">
+                            <span className="text-2xl font-extrabold text-slate-800">{comp.amount}</span>
+                            <span className="text-xs text-slate-400 font-medium">/ {comp.target} un</span>
+                         </div>
                        </div>
+                       <span className={`text-[10px] font-bold px-2 py-1 rounded-lg uppercase ${bgColor} ${textColor}`}>
+                          {isCritical ? 'Crítico' : isWarning ? 'Atenção' : 'Estável'}
+                       </span>
                      </div>
-                     <span className={`text-[10px] font-bold px-2 py-1 rounded-lg uppercase ${bgColor} ${textColor}`}>
-                        {isCritical ? 'Crítico' : isWarning ? 'Atenção' : 'Estável'}
-                     </span>
-                   </div>
 
-                   <div className="space-y-2 mb-4">
-                    <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full transition-all duration-700 ${barColor}`} style={{ width: `${percentage}%` }} />
+                     <div className="space-y-2 mb-4">
+                      <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full transition-all duration-700 ${barColor}`} style={{ width: `${percentage}%` }} />
+                      </div>
                     </div>
+
+                    {comp.prediction <= 5 && (
+                      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 text-xs font-bold text-red-600">
+                        <AlertTriangle size={14} /> Previsão de esgotamento: {comp.prediction} dias
+                      </div>
+                    )}
+                    {comp.prediction > 5 && (
+                      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 text-xs font-medium text-slate-400">
+                        <Activity size={14} /> Abastecido para {comp.prediction} dias
+                      </div>
+                    )}
                   </div>
-
-                  {comp.prediction <= 5 && (
-                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 text-xs font-bold text-red-600">
-                      <AlertTriangle size={14} /> Previsão de esgotamento: {comp.prediction} dias
-                    </div>
-                  )}
-                  {comp.prediction > 5 && (
-                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 text-xs font-medium text-slate-400">
-                      <Activity size={14} /> Abastecido para {comp.prediction} dias
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
       </section>
 
       {/* Analytics */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-2 mb-6">
-            <h3 className="font-bold text-slate-800">Perfil: Gênero</h3>
-            <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">Tipo {activeTab}</span>
-          </div>
-          
-          <div className="flex items-center justify-center py-4">
-            <div className="relative w-40 h-40 rounded-full transition-all duration-500" style={{ background: `conic-gradient(${genderData[0].color} 0% ${genderData[0].value}%, ${genderData[1].color} ${genderData[0].value}% 100%)` }}>
-              <div className="absolute inset-0 m-8 bg-white rounded-full flex items-center justify-center flex-col">
-                <span className="text-xs text-slate-400 font-bold uppercase">Total</span>
-                <span className="text-xl font-bold text-slate-800">100%</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-center gap-6 mt-4">
-            {genderData.map((item) => (
-              <div key={item.label} className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-                <div>
-                  <p className="text-sm font-bold text-slate-700">{item.value}%</p>
-                  <p className="text-xs text-slate-400">{item.label}</p>
+        <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm min-h-[300px]">
+          {isLoading ? (
+             <div className="h-full flex items-center justify-center text-slate-400 py-12">Carregando gráficos...</div>
+          ) : (
+             <>
+                <div className="flex items-center gap-2 mb-6">
+                  <h3 className="font-bold text-slate-800">Perfil: Gênero</h3>
+                  <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">Tipo {activeTab}</span>
                 </div>
-              </div>
-            ))}
-          </div>
+                
+                <div className="flex items-center justify-center py-4">
+                  <div className="relative w-40 h-40 rounded-full transition-all duration-500" style={{ background: `conic-gradient(${genderData[0].color} 0% ${genderData[0].value}%, ${genderData[1].color} ${genderData[0].value}% 100%)` }}>
+                    <div className="absolute inset-0 m-8 bg-white rounded-full flex items-center justify-center flex-col">
+                      <span className="text-xs text-slate-400 font-bold uppercase">Total</span>
+                      <span className="text-xl font-bold text-slate-800">{genderData[0].value + genderData[1].value > 0 ? '100%' : '0%'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-center gap-6 mt-4">
+                  {genderData.map((item) => (
+                    <div key={item.label} className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-700">{item.value}%</p>
+                        <p className="text-xs text-slate-400">{item.label}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+             </>
+          )}
         </div>
 
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-2 mb-6">
-             <h3 className="font-bold text-slate-800">Perfil: Faixa Etária</h3>
-             <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">Tipo {activeTab}</span>
-          </div>
-          
-          <div className="flex items-end justify-around h-48 pt-4 pb-2 border-b border-gray-100">
-            {ageData.map((item) => (
-              <div key={item.label} className="flex flex-col items-center gap-2 w-full group relative">
-                <div className="absolute -top-8 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs py-1 px-2 rounded mb-1 z-10">
-                  {item.value}%
+        <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm min-h-[300px]">
+          {isLoading ? (
+             <div className="h-full flex items-center justify-center text-slate-400 py-12">Carregando gráficos...</div>
+          ) : (
+             <>
+                <div className="flex items-center gap-2 mb-6">
+                   <h3 className="font-bold text-slate-800">Perfil: Faixa Etária</h3>
+                   <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">Tipo {activeTab}</span>
                 </div>
-                <div 
-                  className={`w-12 md:w-16 bg-brand-red/90 rounded-t-lg transition-all duration-500 hover:bg-brand-red ${item.height}`}
-                  style={{ height: `${item.value * 2.5}px` }} 
-                ></div>
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-around mt-4">
-            {ageData.map((item) => (
-              <div key={item.label} className="text-center w-full">
-                <p className="text-sm font-bold text-slate-700">{item.label}</p>
-                <p className="text-xs text-slate-400">anos</p>
-              </div>
-            ))}
-          </div>
+                
+                <div className="flex items-end justify-around h-48 pt-4 pb-2 border-b border-gray-100">
+                  {ageData.map((item) => (
+                    <div key={item.label} className="flex flex-col items-center gap-2 w-full group relative">
+                      <div className="absolute -top-8 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs py-1 px-2 rounded mb-1 z-10">
+                        {item.value}%
+                      </div>
+                      <div 
+                        className={`w-12 md:w-16 bg-brand-red/90 rounded-t-lg transition-all duration-500 hover:bg-brand-red ${item.height}`}
+                        style={{ height: `${item.value * 2.5}px` }} 
+                      ></div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-around mt-4">
+                  {ageData.map((item) => (
+                    <div key={item.label} className="text-center w-full">
+                      <p className="text-sm font-bold text-slate-700">{item.label}</p>
+                      <p className="text-xs text-slate-400">anos</p>
+                    </div>
+                  ))}
+                </div>
+             </>
+          )}
         </div>
       </section>
 

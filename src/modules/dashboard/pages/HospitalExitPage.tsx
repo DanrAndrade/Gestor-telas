@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { 
   Truck, User, Barcode, CheckCircle2, X, AlertCircle, Building2, 
   ThermometerSnowflake, Package, FileText, ClipboardCheck,
@@ -22,18 +22,26 @@ interface HospitalOrder {
   status: 'pending' | 'approved' | 'rejected' | 'completed';
 }
 
-const INITIAL_ORDERS: HospitalOrder[] = [
-  { id: 'REQ-H-001', hospitalName: 'Hospital Regional de Eunápolis', doctor: 'Dr. Carlos Mendes', items: '3x O+ (Hemácias)', date: 'Hoje, 10:30', reason: 'Cirurgia Ortopédica', priority: 'high', status: 'pending' },
-  { id: 'REQ-H-002', hospitalName: 'Santa Casa de Misericórdia', doctor: 'Dra. Ana Costa', items: '5x O- (Hemácias), 2x Plasma', date: 'Hoje, 11:15', reason: 'Hemorragia Ativa (Emergência)', priority: 'critical', status: 'pending' },
-  { id: 'REQ-H-003', hospitalName: 'Hospital Unimed', doctor: 'Dr. Roberto Alves', items: '2x A+ (Plaquetas)', date: 'Hoje, 08:00', reason: 'Reposição Eletiva', priority: 'normal', status: 'approved' },
-];
-
-const MOCK_COMPONENTS = ['Concentrado de Hemácias', 'Plasma Fresco Congelado', 'Concentrado de Plaquetas', 'Crioprecipitado'];
-const MOCK_TYPES = ['O+', 'A+', 'B+', 'O-', 'A-', 'AB+'];
+const API_URL = 'http://localhost:5000/api';
 
 export function HospitalExitPage() {
   const [activeTab, setActiveTab] = useState<'requests' | 'dispatch'>('requests');
-  const [orders, setOrders] = useState<HospitalOrder[]>(INITIAL_ORDERS);
+  const [orders, setOrders] = useState<HospitalOrder[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(true);
+
+  useEffect(() => {
+    setIsLoadingOrders(true);
+    fetch(`${API_URL}/pedidos/pendentes`)
+      .then(res => res.json())
+      .then(data => {
+        setOrders(data);
+        setIsLoadingOrders(false);
+      })
+      .catch(err => {
+        console.error('Erro ao buscar pedidos pendentes:', err);
+        setIsLoadingOrders(false);
+      });
+  }, []);
   
   const [processingOrder, setProcessingOrder] = useState<HospitalOrder | null>(null);
   
@@ -87,22 +95,35 @@ export function HospitalExitPage() {
     e.preventDefault();
     if (!scanCode) return;
 
-    const randomType = MOCK_TYPES[Math.floor(Math.random() * MOCK_TYPES.length)];
-    const randomComponent = MOCK_COMPONENTS[Math.floor(Math.random() * MOCK_COMPONENTS.length)];
-
-    const newBag: ScannedBag = {
-      code: scanCode.toUpperCase(),
-      type: randomType, 
-      component: randomComponent 
-    };
-
-    if (scannedBags.find(b => b.code === newBag.code)) {
+    const codeUpper = scanCode.toUpperCase();
+    if (scannedBags.find(b => b.code === codeUpper)) {
       alert('Esta bolsa já foi bipada e está na caixa térmica!');
-    } else {
-      setScannedBags([...scannedBags, newBag]);
+      setScanCode('');
+      scanInputRef.current?.focus();
+      return;
     }
-    setScanCode('');
-    scanInputRef.current?.focus();
+
+    fetch(`${API_URL}/estoque/bolsa/${codeUpper}`)
+      .then(res => {
+        if (!res.ok) throw new Error('Bolsa não encontrada');
+        return res.json();
+      })
+      .then(data => {
+        const newBag: ScannedBag = {
+          code: codeUpper,
+          type: data.type || data.bloodType,
+          component: data.component
+        };
+        setScannedBags([...scannedBags, newBag]);
+      })
+      .catch(err => {
+        console.error('Erro na bipagem:', err);
+        alert('Erro: Bolsa não encontrada ou indisponível.');
+      })
+      .finally(() => {
+        setScanCode('');
+        scanInputRef.current?.focus();
+      });
   };
 
   const handleRemoveBag = (code: string) => {
@@ -116,13 +137,36 @@ export function HospitalExitPage() {
     }
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setShowReceipt(true);
-      if (processingOrder) {
-        setOrders(orders.map(o => o.id === processingOrder.id ? { ...o, status: 'completed' } : o));
-      }
-    }, 1500);
+
+    const checkOutData = {
+      orderId: processingOrder?.id,
+      driverName,
+      boxId,
+      temperature,
+      bags: scannedBags.map(b => b.code)
+    };
+
+    fetch(`${API_URL}/logistica/saida`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(checkOutData)
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('Erro ao registrar saída de estoque');
+        return res.json();
+      })
+      .then(() => {
+        setIsSubmitting(false);
+        setShowReceipt(true);
+        if (processingOrder) {
+          setOrders(orders.map(o => o.id === processingOrder.id ? { ...o, status: 'completed' } : o));
+        }
+      })
+      .catch(err => {
+        console.error('Erro na saída:', err);
+        setIsSubmitting(false);
+        alert('Ocorreu um erro ao finalizar a expedição.');
+      });
   };
 
   const handleCloseReceipt = () => {
@@ -166,6 +210,12 @@ export function HospitalExitPage() {
       </div>
 
       {activeTab === 'requests' && (
+        isLoadingOrders ? (
+          <div className="py-12 text-center text-slate-400 flex flex-col items-center gap-3 bg-white border border-gray-200 rounded-2xl">
+            <Activity className="animate-spin text-brand-red w-8 h-8" />
+            <p className="font-medium">Carregando solicitações...</p>
+          </div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
           {orders.filter(o => o.status === 'pending').map(order => (
             <div key={order.id} className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 hover:shadow-md transition-shadow relative overflow-hidden flex flex-col">
@@ -213,6 +263,7 @@ export function HospitalExitPage() {
             </div>
           )}
         </div>
+        )
       )}
 
       {activeTab === 'dispatch' && (

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   Search, MapPin, ArrowRightLeft, CheckCircle2, X, 
   PackageCheck, Truck, Barcode, ArrowUpRight, ArrowDownLeft,
@@ -13,11 +13,7 @@ interface NetworkUnit {
   stock: { [key: string]: number };
 }
 
-const MOCK_NETWORK: NetworkUnit[] = [
-  { id: '1', name: 'Hemonúcleo Eunápolis', distance: '12 km', stock: { 'A+': 45, 'O+': 30, 'O-': 5, 'AB-': 2 } },
-  { id: '2', name: 'Agência Porto Seguro', distance: '64 km', stock: { 'A+': 12, 'O+': 8, 'O-': 1, 'AB-': 0 } },
-  { id: '3', name: 'Hospital Regional Itamaraju', distance: '98 km', stock: { 'A+': 25, 'O+': 20, 'O-': 8, 'AB-': 4 } },
-];
+const API_URL = 'http://localhost:5000/api';
 
 interface TransferOrder {
   id: string;
@@ -30,15 +26,26 @@ interface TransferOrder {
   priority: 'normal' | 'high' | 'critical';
 }
 
-const INITIAL_ORDERS: TransferOrder[] = [
-  { id: 'REQ-001', type: 'outgoing', status: 'pending', unitName: 'Agência Porto Seguro', items: '3x A+', date: 'Hoje, 10:30', reason: 'Estoque Baixo', priority: 'normal' },
-  { id: 'REQ-002', type: 'incoming', status: 'in_transit', unitName: 'Hospital Regional', items: '5x O-', date: 'Ontem, 16:00', reason: 'Transfusão Urgente', priority: 'critical' },
-  { id: 'REQ-003', type: 'outgoing', status: 'approved', unitName: 'Hemonúcleo Eunápolis', items: '2x AB-', date: 'Hoje, 08:15', reason: 'Cirurgia Eletiva', priority: 'high' },
-];
-
 export function LogisticsPage() {
   const [activeTab, setActiveTab] = useState<'network' | 'outgoing' | 'incoming'>('network');
-  const [orders, setOrders] = useState<TransferOrder[]>(INITIAL_ORDERS);
+  const [orders, setOrders] = useState<TransferOrder[]>([]);
+  const [networkUnits, setNetworkUnits] = useState<NetworkUnit[]>([]);
+  const [isLoadingNetwork, setIsLoadingNetwork] = useState(true);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(true);
+
+  React.useEffect(() => {
+    setIsLoadingNetwork(true);
+    fetch(`${API_URL}/rede/unidades`)
+      .then(res => res.ok ? res.json() : [])
+      .then(data => { setNetworkUnits(data); setIsLoadingNetwork(false); })
+      .catch(err => { console.error('Erro ao buscar unidades:', err); setIsLoadingNetwork(false); });
+
+    setIsLoadingOrders(true);
+    fetch(`${API_URL}/logistica/transferencias`)
+      .then(res => res.ok ? res.json() : [])
+      .then(data => { setOrders(data); setIsLoadingOrders(false); })
+      .catch(err => { console.error('Erro ao buscar transferências:', err); setIsLoadingOrders(false); });
+  }, []);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUnit, setSelectedUnit] = useState<NetworkUnit | null>(null);
@@ -74,12 +81,26 @@ export function LogisticsPage() {
   };
 
   const handleSendRequest = () => {
-    setSuccessMessage('Solicitação enviada! Aguarde a aprovação da unidade de origem.');
-    setShowSuccess(true);
-    setTimeout(() => {
-      setShowSuccess(false);
-      setSelectedUnit(null);
-    }, 2500);
+    if (!selectedUnit) return;
+
+    fetch(`${API_URL}/logistica/transferencias`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ unitId: selectedUnit.id, ...requestData })
+    })
+    .then(res => res.json())
+    .then(() => {
+      setSuccessMessage('Solicitação enviada! Aguarde a aprovação da unidade de origem.');
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+        setSelectedUnit(null);
+      }, 2500);
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Erro ao enviar solicitação.');
+    });
   };
 
   const handleApproveOrder = (orderId: string) => {
@@ -124,20 +145,45 @@ export function LogisticsPage() {
       return;
     }
 
-    setSuccessMessage(activeTab === 'outgoing' ? 'Expedição concluída! Guia de remessa gerada e itens em trânsito.' : 'Recebimento confirmado! Qualidade validada e estoque atualizado.');
-    setShowSuccess(true);
+    const payload = {
+      orderId: processingOrder?.id,
+      driverName,
+      boxId,
+      temperature,
+      bags: scannedItems
+    };
     
-    if (processingOrder) {
-      const newStatus = activeTab === 'outgoing' ? 'in_transit' : 'completed';
-      setOrders(orders.map(o => o.id === processingOrder.id ? { ...o, status: newStatus } : o));
-    }
+    const endpoint = activeTab === 'outgoing' ? '/logistica/transferir' : '/logistica/receber';
 
-    setTimeout(() => {
-      setShowSuccess(false);
-      setScannedItems([]);
-      setProcessingOrder(null);
-      resetTransportData();
-    }, 2500);
+    fetch(`${API_URL}${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('Erro na operação logística');
+        return res.json();
+    })
+    .then(() => {
+      setSuccessMessage(activeTab === 'outgoing' ? 'Expedição concluída! Guia de remessa gerada e itens em trânsito.' : 'Recebimento confirmado! Qualidade validada e estoque atualizado.');
+      setShowSuccess(true);
+      
+      if (processingOrder) {
+        const newStatus = activeTab === 'outgoing' ? 'in_transit' : 'completed';
+        setOrders(orders.map(o => o.id === processingOrder.id ? { ...o, status: newStatus } : o));
+      }
+
+      setTimeout(() => {
+        setShowSuccess(false);
+        setScannedItems([]);
+        setProcessingOrder(null);
+        resetTransportData();
+      }, 2500);
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Ocorreu um erro ao finalizar a operação.');
+    });
   };
 
   const getPriorityColor = (priority: string) => {
@@ -205,34 +251,45 @@ export function LogisticsPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {MOCK_NETWORK.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase())).map((unit) => (
-                <div key={unit.id} className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition-all group flex flex-col justify-between">
-                  <div>
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="font-bold text-slate-800 group-hover:text-brand-red transition-colors">{unit.name}</h3>
-                        <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
-                          <MapPin size={12} /> {unit.distance}
-                        </p>
+              {isLoadingNetwork ? (
+                <div className="col-span-full py-8 text-center text-slate-400">
+                  <Activity className="animate-spin text-brand-red w-8 h-8 mx-auto mb-2" />
+                  <p>Carregando unidades da rede...</p>
+                </div>
+              ) : networkUnits.length === 0 ? (
+                <div className="col-span-full py-8 text-center text-slate-400">
+                  <p>Nenhuma unidade encontrada.</p>
+                </div>
+              ) : (
+                networkUnits.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase())).map((unit) => (
+                  <div key={unit.id} className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition-all group flex flex-col justify-between">
+                    <div>
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="font-bold text-slate-800 group-hover:text-brand-red transition-colors">{unit.name}</h3>
+                          <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                            <MapPin size={12} /> {unit.distance}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-4 gap-2 mb-4">
+                        {Object.entries(unit.stock).map(([type, qtd]) => (
+                          <div key={type} className={`text-center p-1.5 rounded-lg border ${qtd < 5 ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100'}`}>
+                            <p className={`text-[10px] font-bold ${qtd < 5 ? 'text-red-700' : 'text-slate-500'}`}>{type}</p>
+                            <p className={`font-bold text-sm ${qtd < 5 ? 'text-red-800' : 'text-slate-800'}`}>{qtd}</p>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                    <div className="grid grid-cols-4 gap-2 mb-4">
-                      {Object.entries(unit.stock).map(([type, qtd]) => (
-                        <div key={type} className={`text-center p-1.5 rounded-lg border ${qtd < 5 ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100'}`}>
-                          <p className={`text-[10px] font-bold ${qtd < 5 ? 'text-red-700' : 'text-slate-500'}`}>{type}</p>
-                          <p className={`font-bold text-sm ${qtd < 5 ? 'text-red-800' : 'text-slate-800'}`}>{qtd}</p>
-                        </div>
-                      ))}
-                    </div>
+                    <button 
+                      onClick={() => handleOpenRequestModal(unit)}
+                      className="w-full py-2 bg-slate-800 text-white rounded-lg text-sm font-bold hover:bg-slate-700 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <ArrowRightLeft size={16} /> Solicitar Transferência
+                    </button>
                   </div>
-                  <button 
-                    onClick={() => handleOpenRequestModal(unit)}
-                    className="w-full py-2 bg-slate-800 text-white rounded-lg text-sm font-bold hover:bg-slate-700 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <ArrowRightLeft size={16} /> Solicitar Transferência
-                  </button>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
@@ -242,27 +299,37 @@ export function LogisticsPage() {
               Minhas Solicitações
             </h2>
             <div className="space-y-4">
-              {orders.filter(o => o.type === 'incoming' && o.status !== 'completed').map(order => (
-                <div key={order.id} className="p-3 bg-gray-50 rounded-xl border border-gray-100 relative overflow-hidden">
-                  <div className={`absolute top-0 left-0 w-1 h-full ${order.priority === 'critical' ? 'bg-red-500' : order.priority === 'high' ? 'bg-amber-500' : 'bg-blue-500'}`}></div>
-                  <div className="pl-3">
-                    <div className="flex justify-between mb-1">
-                      <span className="text-xs font-bold text-slate-500">{order.id}</span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        order.status === 'in_transit' ? 'bg-purple-100 text-purple-700' : 'bg-slate-200 text-slate-600'
-                      }`}>
-                        {order.status === 'in_transit' ? 'EM TRÂNSITO' : 'AGUARDANDO'}
-                      </span>
-                    </div>
-                    <p className="text-sm font-bold text-slate-800">{order.items}</p>
-                    <p className="text-xs text-slate-500 mb-2">De: {order.unitName}</p>
-                    <div className="flex items-center gap-1 text-[10px] font-bold bg-white w-fit px-2 py-1 rounded border border-gray-200 text-slate-600">
-                      <FileText size={10} />
-                      Motivo: {order.reason}
+              {isLoadingOrders ? (
+                <div className="py-4 text-center text-slate-400">
+                  <p>Carregando solicitações...</p>
+                </div>
+              ) : orders.filter(o => o.type === 'incoming' && o.status !== 'completed').length === 0 ? (
+                <div className="py-4 text-center text-slate-400">
+                  <p>Sem solicitações em andamento.</p>
+                </div>
+              ) : (
+                orders.filter(o => o.type === 'incoming' && o.status !== 'completed').map(order => (
+                  <div key={order.id} className="p-3 bg-gray-50 rounded-xl border border-gray-100 relative overflow-hidden">
+                    <div className={`absolute top-0 left-0 w-1 h-full ${order.priority === 'critical' ? 'bg-red-500' : order.priority === 'high' ? 'bg-amber-500' : 'bg-blue-500'}`}></div>
+                    <div className="pl-3">
+                      <div className="flex justify-between mb-1">
+                        <span className="text-xs font-bold text-slate-500">{order.id}</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          order.status === 'in_transit' ? 'bg-purple-100 text-purple-700' : 'bg-slate-200 text-slate-600'
+                        }`}>
+                          {order.status === 'in_transit' ? 'EM TRÂNSITO' : 'AGUARDANDO'}
+                        </span>
+                      </div>
+                      <p className="text-sm font-bold text-slate-800">{order.items}</p>
+                      <p className="text-xs text-slate-500 mb-2">De: {order.unitName}</p>
+                      <div className="flex items-center gap-1 text-[10px] font-bold bg-white w-fit px-2 py-1 rounded border border-gray-200 text-slate-600">
+                        <FileText size={10} />
+                        Motivo: {order.reason}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>

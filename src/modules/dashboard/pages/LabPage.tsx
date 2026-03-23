@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FlaskConical, CheckCircle2, XCircle, AlertTriangle, FileText, Microscope, TestTube2, X, RefreshCw } from 'lucide-react';
 import { DEFAULT_EXAMS } from './LabConfigurationPage';
 
@@ -12,15 +12,26 @@ interface LabBag {
   finalType?: string; // O tipo real confirmado pelo lab
 }
 
-const MOCK_LAB_BAGS: LabBag[] = [
-  { id: '1', code: 'L-8992', type: 'A+', collectedAt: 'Hoje, 08:30', status: 'pending' },
-  { id: '2', code: 'L-8993', type: 'O-', collectedAt: 'Hoje, 09:15', status: 'pending' },
-  { id: '3', code: 'L-8994', type: 'B+', collectedAt: 'Hoje, 10:00', status: 'analyzing' },
-];
+const API_URL = 'http://localhost:5000/api';
 
 export function LabPage() {
   const [activeTab, setActiveTab] = useState<'queue' | 'history'>('queue');
-  const [bags, setBags] = useState<LabBag[]>(MOCK_LAB_BAGS);
+  const [bags, setBags] = useState<LabBag[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    fetch(`${API_URL}/laboratorio/amostras`)
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        setBags(data);
+        setIsLoading(false);
+      })
+      .catch(err => {
+        console.error('Erro ao carregar amostras:', err);
+        setIsLoading(false);
+      });
+  }, []);
   
   const [selectedBag, setSelectedBag] = useState<LabBag | null>(null);
   
@@ -77,29 +88,46 @@ export function LabPage() {
     const finalType = getFinalBloodType() || selectedBag.type;
     const newStatus = approved ? 'approved' : 'discarded';
     
-    // Atualiza a bolsa
-    setBags(bags.map(b => b.id === selectedBag.id ? { 
-      ...b, 
-      status: newStatus, 
-      results: { ...examResults, bloodType: finalType },
-      type: finalType // AQUI: Atualizamos o tipo da bolsa para o real
-    } : b));
-    
-    let msg = '';
-    if (approved) {
-      msg = `Bolsa ${selectedBag.code} APROVADA.\nTipagem Confirmada: ${finalType}`;
-      if (isDivergent()) {
-        msg += `\n(ATENÇÃO: Cadastro do doador corrigido de ${selectedBag.type} para ${finalType})`;
+    fetch(`${API_URL}/laboratorio/resultado/${selectedBag.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: newStatus,
+        results: { ...examResults, bloodType: finalType },
+        type: finalType
+      })
+    })
+    .then(res => {
+      if (!res.ok) throw new Error('Falha ao registrar resultado');
+      
+      // Atualiza a bolsa localmente
+      setBags(bags.map(b => b.id === selectedBag.id ? { 
+        ...b, 
+        status: newStatus, 
+        results: { ...examResults, bloodType: finalType },
+        type: finalType
+      } : b));
+      
+      let msg = '';
+      if (approved) {
+        msg = `Bolsa ${selectedBag.code} APROVADA.\nTipagem Confirmada: ${finalType}`;
+        if (isDivergent()) {
+          msg += `\n(ATENÇÃO: Cadastro do doador corrigido de ${selectedBag.type} para ${finalType})`;
+        }
+      } else {
+        msg = `Bolsa ${selectedBag.code} REPROVADA nos exames sorológicos.\nMarcada para descarte.`;
       }
-    } else {
-      msg = `Bolsa ${selectedBag.code} REPROVADA nos exames sorológicos.\nMarcada para descarte.`;
-    }
 
-    setSuccessMessage(msg);
-    setShowSuccess(true);
-    setSelectedBag(null);
+      setSuccessMessage(msg);
+      setShowSuccess(true);
+      setSelectedBag(null);
 
-    setTimeout(() => setShowSuccess(false), 4000);
+      setTimeout(() => setShowSuccess(false), 4000);
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Erro ao registrar resultado da análise.');
+    });
   };
 
   return (
@@ -122,6 +150,12 @@ export function LabPage() {
       </div>
 
       {activeTab === 'queue' && (
+        isLoading ? (
+           <div className="py-12 text-center text-slate-400 flex flex-col items-center gap-3 bg-white border border-gray-200 rounded-2xl">
+             <AlertTriangle className="animate-spin text-brand-red w-8 h-8" />
+             <p className="font-medium">Carregando amostras...</p>
+           </div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
            {bags.filter(b => b.status === 'pending' || b.status === 'analyzing').map(bag => (
              <div key={bag.id} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all">
@@ -154,7 +188,13 @@ export function LabPage() {
                 </div>
              </div>
            ))}
+           {bags.filter(b => b.status === 'pending' || b.status === 'analyzing').length === 0 && (
+             <div className="col-span-1 md:col-span-2 lg:col-span-3 text-center text-slate-400 py-12 bg-white border border-gray-200 rounded-2xl">
+               Nenhuma amostra pendente de análise no momento.
+             </div>
+           )}
         </div>
+        )
       )}
 
       {selectedBag && (

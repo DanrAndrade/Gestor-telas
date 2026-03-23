@@ -17,6 +17,8 @@ const calculateAge = (birthDateString: string) => {
   return age;
 };
 
+const API_URL = 'http://localhost:5000/api';
+
 export function DonorFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -71,10 +73,19 @@ export function DonorFormPage() {
 
   useEffect(() => {
     if (isEditing) {
-      // Mock para edição
-      setFormData(prev => ({ ...prev, fullName: 'João Silva', cpf: '123.456.789-00', birthDate: '1990-05-15', phone: '(11) 99999-9999' }));
+      setIsLoading(true);
+      fetch(`${API_URL}/doadores/${id}`)
+        .then(res => res.json())
+        .then(data => {
+          setFormData(prev => ({ ...prev, ...data }));
+          setIsLoading(false);
+        })
+        .catch(err => {
+          console.error('Erro ao buscar doador:', err);
+          setIsLoading(false);
+        });
     }
-  }, [isEditing]);
+  }, [isEditing, id]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,10 +100,30 @@ export function DonorFormPage() {
     
     setAgeError('');
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      setShowSuccessModal(true);
-    }, 1000);
+    
+    const method = isEditing ? 'PUT' : 'POST';
+    const url = isEditing ? `${API_URL}/doadores/${id}` : `${API_URL}/doadores`;
+
+    fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(formData),
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('Erro ao salvar');
+        return res.json();
+      })
+      .then(() => {
+        setIsLoading(false);
+        setShowSuccessModal(true);
+      })
+      .catch(err => {
+        console.error('Erro ao salvar doador:', err);
+        setIsLoading(false);
+        alert('Ocorreu um erro ao salvar. Tente novamente.');
+      });
   };
 
   const handleCloseModal = () => {

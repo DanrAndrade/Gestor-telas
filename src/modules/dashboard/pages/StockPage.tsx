@@ -44,21 +44,28 @@ const calculateDefaultExpiration = (component: string, collectionDateStr: string
   return date.toISOString().split('T')[0];
 };
 
-const INITIAL_STOCK: BloodBag[] = [
-  { id: '1', code: 'W1234 56789', type: 'O+', component: 'Concentrado de Hemácias', collectionDate: '2023-12-01', expirationDate: '2024-01-10', status: 'disponivel', location: 'Geladeira 01 - A' },
-  { id: '2', code: 'W1234 56790', type: 'A-', component: 'Plasma Fresco Congelado', collectionDate: '2023-12-05', expirationDate: '2024-12-05', status: 'disponivel', location: 'Freezer 02 - B' },
-  { id: '3', code: 'W1234 56791', type: 'B+', component: 'Concentrado de Plaquetas', collectionDate: '2024-02-01', expirationDate: '2024-02-06', status: 'reservada', location: 'Agitador 01' },
-];
-
-const INCOMING_BAGS: BloodBag[] = [
-  { id: '101', code: 'W1234 56800', type: 'AB+', component: 'Plasma Isento de Crioprecipitado', collectionDate: new Date().toISOString(), expirationDate: '', status: 'aguardando_armazenamento', location: '' },
-  { id: '102', code: 'W1234 56801', type: 'O-', component: 'Concentrado de Hemácias', collectionDate: new Date().toISOString(), expirationDate: '', status: 'aguardando_armazenamento', location: '' },
-];
+const API_URL = 'http://localhost:5000/api';
 
 export function StockPage() {
   const [activeTab, setActiveTab] = useState<'stock' | 'incoming'>('stock');
-  const [bags, setBags] = useState<BloodBag[]>(INITIAL_STOCK);
-  const [incomingBags, setIncomingBags] = useState<BloodBag[]>(INCOMING_BAGS);
+  const [bags, setBags] = useState<BloodBag[]>([]);
+  const [incomingBags, setIncomingBags] = useState<BloodBag[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    Promise.all([
+      fetch(`${API_URL}/estoque/bolsas`).then(res => res.ok ? res.json() : []),
+      fetch(`${API_URL}/estoque/alertas`).then(res => res.ok ? res.json() : [])
+    ]).then(([bolsasData, alertasData]) => {
+      setBags(bolsasData);
+      setIncomingBags(alertasData);
+      setIsLoading(false);
+    }).catch(err => {
+      console.error('Erro ao buscar estoque:', err);
+      setIsLoading(false);
+    });
+  }, []);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -113,9 +120,20 @@ export function StockPage() {
 
   const handleBatchDiscard = () => {
     if (confirm(`Tem certeza que deseja descartar ${selectedIds.length} bolsas selecionadas?`)) {
-      setBags(bags.filter(bag => !selectedIds.includes(bag.id)));
-      setSelectedIds([]);
-      alert('Bolsas descartadas e registradas no log de auditoria.');
+      Promise.all(selectedIds.map(id => 
+        fetch(`${API_URL}/estoque/bolsa/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'descartada' })
+        })
+      )).then(() => {
+        setBags(bags.filter(bag => !selectedIds.includes(bag.id)));
+        setSelectedIds([]);
+        alert('Bolsas descartadas e registradas no log de auditoria.');
+      }).catch(err => {
+        console.error('Erro ao descartar bolsas:', err);
+        alert('Erro ao descartar algumas bolsas.');
+      });
     }
   };
 
@@ -126,11 +144,20 @@ export function StockPage() {
 
   const handleSaveLocation = () => {
     if (editingBag && newLocation.trim()) {
-      setBags(bags.map(b => 
-        b.id === editingBag.id ? { ...b, location: newLocation } : b
-      ));
-      setEditingBag(null);
-      setNewLocation('');
+      fetch(`${API_URL}/estoque/bolsa/${editingBag.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...editingBag, location: newLocation })
+      }).then(() => {
+        setBags(bags.map(b => 
+          b.id === editingBag.id ? { ...b, location: newLocation } : b
+        ));
+        setEditingBag(null);
+        setNewLocation('');
+      }).catch(err => {
+        console.error('Erro ao atualizar localização:', err);
+        alert('Erro ao atualizar localização.');
+      });
     }
   };
 
@@ -153,12 +180,22 @@ export function StockPage() {
         location: data.location,
         expirationDate: data.expDate
       };
-      setBags([storedBag, ...bags]);
-      setIncomingBags(incomingBags.filter(b => b.id !== bagId));
       
-      const newIncomingData = { ...incomingData };
-      delete newIncomingData[bagId];
-      setIncomingData(newIncomingData);
+      fetch(`${API_URL}/estoque/bolsa/${bagId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(storedBag)
+      }).then(() => {
+        setBags([storedBag, ...bags]);
+        setIncomingBags(incomingBags.filter(b => b.id !== bagId));
+        
+        const newIncomingData = { ...incomingData };
+        delete newIncomingData[bagId];
+        setIncomingData(newIncomingData);
+      }).catch(err => {
+        console.error('Erro ao guardar bolsa:', err);
+        alert('Erro ao guardar bolsa.');
+      });
     }
   };
 
@@ -204,6 +241,12 @@ export function StockPage() {
       </div>
 
       {activeTab === 'stock' && (
+        isLoading ? (
+          <div className="py-12 text-center text-slate-400 flex flex-col items-center gap-3 bg-white border border-gray-200 rounded-2xl">
+            <AlertCircle className="animate-spin text-brand-red w-8 h-8" />
+            <p className="font-medium">Carregando estoque...</p>
+          </div>
+        ) : (
         <>
           <div className="flex justify-between items-center gap-4">
             <div className="relative flex-1 max-w-md">
@@ -394,9 +437,16 @@ export function StockPage() {
             </div>
           </div>
         </>
+        )
       )}
 
       {activeTab === 'incoming' && (
+        isLoading ? (
+          <div className="py-12 text-center text-slate-400 flex flex-col items-center gap-3 bg-white border border-gray-200 rounded-2xl">
+            <AlertCircle className="animate-spin text-brand-red w-8 h-8" />
+            <p className="font-medium">Carregando entradas...</p>
+          </div>
+        ) : (
         <div className="space-y-4 animate-fade-in">
           {incomingBags.length === 0 ? (
             <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center text-slate-400">
@@ -466,6 +516,7 @@ export function StockPage() {
             </div>
           )}
         </div>
+        )
       )}
 
       {editingBag && (
