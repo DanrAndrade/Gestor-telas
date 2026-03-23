@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, Filter, Edit, FileText, Activity, AlertCircle, CheckCircle2, User, Clock, X, Calendar } from 'lucide-react';
+import { Search, Filter, Edit, Clock, X, Calendar, User, CheckCircle2, Activity, AlertCircle, Download, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface Donor {
@@ -45,13 +45,18 @@ export function DonorsListPage() {
     }
   };
 
+  const handleExportExcel = () => {
+    alert("Exportando lista de doadores para Excel...");
+  };
+
+  // Nova função para enviar o doador para a tela de triagem
   const handleNewDonation = (donor: Donor) => {
     navigate('/dashboard/triagem', { 
       state: { 
         donor: {
           id: donor.id,
           name: donor.name,
-          lastDonation: donor.lastDonation,
+          code: donor.code,
           bloodType: donor.bloodType
         } 
       } 
@@ -66,11 +71,11 @@ export function DonorsListPage() {
           <p className="text-slate-500 text-sm">Base de doadores cadastrados e histórico clínico.</p>
         </div>
         <button 
-          onClick={() => navigate('/dashboard/doadores/novo')}
-          className="px-4 py-2.5 bg-brand-red hover:bg-red-700 text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-brand-red/20 transition-all"
+          onClick={handleExportExcel}
+          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all"
         >
-          <Plus size={18} />
-          Novo Doador
+          <Download size={18} />
+          Exportar Excel
         </button>
       </div>
 
@@ -157,14 +162,16 @@ export function DonorsListPage() {
                       >
                         <Edit size={18} />
                       </button>
-
+                      
+                      {/* Novo Botão de Triagem/Doação */}
                       <button 
                         onClick={() => handleNewDonation(donor)}
                         disabled={donor.status === 'bloqueado'}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 text-white rounded-lg text-xs font-bold hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-white rounded-lg text-xs font-bold hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        title="Iniciar Triagem"
                       >
-                        <FileText size={14} />
-                        Nova Doação
+                        <Heart size={14} />
+                        Triagem
                       </button>
                     </div>
                   </td>
@@ -181,6 +188,7 @@ export function DonorsListPage() {
         </div>
       </div>
 
+      {/* Histórico Modal (Mantido Igual) */}
       {selectedHistoryDonor && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-scale-up">

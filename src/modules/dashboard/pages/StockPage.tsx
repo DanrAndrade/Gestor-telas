@@ -1,8 +1,10 @@
-import { useState } from 'react';
-import { Search, Filter, AlertTriangle, Trash2, Droplets, ArrowUpDown, CheckCircle2, AlertCircle, Edit2, X, MapPin, Save, ChevronDown, PackagePlus, ArrowRight } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Filter, AlertTriangle, Trash2, Droplets, ArrowUpDown, CheckCircle2, AlertCircle, Edit2, X, MapPin, Save, ChevronDown, PackagePlus, ArrowRight, Download, Calendar } from 'lucide-react';
 
 type BagStatus = 'disponivel' | 'quarentena' | 'reservada' | 'vencida' | 'descartada' | 'aguardando_armazenamento';
-type BloodComponent = 'Concentrado de Hemácias' | 'Plasma Fresco' | 'Plaquetas' | 'Sangue Total';
+
+// Atualizado para os 6 Hemocomponentes Oficiais
+type BloodComponent = 'Concentrado de Hemácias' | 'Concentrado de Plaquetas' | 'Plasma Fresco Congelado' | 'Crioprecipitado' | 'Concentrado de Granulócitos' | 'Plasma Isento de Crioprecipitado';
 
 interface BloodBag {
   id: string;
@@ -24,21 +26,33 @@ function getDaysRemaining(expirationDate: string): number {
 
 function getValidityStatus(days: number) {
   if (days < 0) return { color: 'text-red-600 bg-red-50 border-red-100', label: 'Vencida', icon: AlertCircle };
-  if (days <= 3) return { color: 'text-amber-600 bg-amber-50 border-amber-100', label: 'Vence em breve', icon: AlertTriangle };
+  if (days <= 5) return { color: 'text-amber-600 bg-amber-50 border-amber-100', label: 'Vence em breve', icon: AlertTriangle };
   return { color: 'text-emerald-600 bg-emerald-50 border-emerald-100', label: 'Validade OK', icon: CheckCircle2 };
 }
 
-// Bolsas já no estoque (Disponíveis)
+// Cálculo automático da validade baseada no componente
+const calculateDefaultExpiration = (component: string, collectionDateStr: string = new Date().toISOString()) => {
+  const date = new Date(collectionDateStr);
+  if (component === 'Concentrado de Plaquetas' || component === 'Concentrado de Granulócitos') {
+    date.setDate(date.getDate() + 5);
+  } else if (component === 'Concentrado de Hemácias') {
+    date.setDate(date.getDate() + 35);
+  } else {
+    // Plasmas e Crio
+    date.setFullYear(date.getFullYear() + 1); 
+  }
+  return date.toISOString().split('T')[0];
+};
+
 const INITIAL_STOCK: BloodBag[] = [
   { id: '1', code: 'W1234 56789', type: 'O+', component: 'Concentrado de Hemácias', collectionDate: '2023-12-01', expirationDate: '2024-01-10', status: 'disponivel', location: 'Geladeira 01 - A' },
-  { id: '2', code: 'W1234 56790', type: 'A-', component: 'Concentrado de Hemácias', collectionDate: '2023-12-05', expirationDate: '2026-06-15', status: 'disponivel', location: 'Geladeira 02 - B' },
-  { id: '3', code: 'W1234 56791', type: 'B+', component: 'Plaquetas', collectionDate: '2024-02-01', expirationDate: '2024-02-06', status: 'reservada', location: 'Agitador 01' },
+  { id: '2', code: 'W1234 56790', type: 'A-', component: 'Plasma Fresco Congelado', collectionDate: '2023-12-05', expirationDate: '2024-12-05', status: 'disponivel', location: 'Freezer 02 - B' },
+  { id: '3', code: 'W1234 56791', type: 'B+', component: 'Concentrado de Plaquetas', collectionDate: '2024-02-01', expirationDate: '2024-02-06', status: 'reservada', location: 'Agitador 01' },
 ];
 
-// Bolsas vindas do Laboratório (Aguardando local)
 const INCOMING_BAGS: BloodBag[] = [
-  { id: '101', code: 'W1234 56800', type: 'AB+', component: 'Plasma Fresco', collectionDate: '2024-02-14', expirationDate: '2025-02-14', status: 'aguardando_armazenamento', location: '' },
-  { id: '102', code: 'W1234 56801', type: 'O-', component: 'Concentrado de Hemácias', collectionDate: '2024-02-14', expirationDate: '2024-03-20', status: 'aguardando_armazenamento', location: '' },
+  { id: '101', code: 'W1234 56800', type: 'AB+', component: 'Plasma Isento de Crioprecipitado', collectionDate: new Date().toISOString(), expirationDate: '', status: 'aguardando_armazenamento', location: '' },
+  { id: '102', code: 'W1234 56801', type: 'O-', component: 'Concentrado de Hemácias', collectionDate: new Date().toISOString(), expirationDate: '', status: 'aguardando_armazenamento', location: '' },
 ];
 
 export function StockPage() {
@@ -55,12 +69,27 @@ export function StockPage() {
   const [editingBag, setEditingBag] = useState<BloodBag | null>(null);
   const [newLocation, setNewLocation] = useState('');
 
-  // Estados para armazenamento (Tab Entrada)
-  const [storingLocation, setStoringLocation] = useState<{[key: string]: string}>({});
+  // Estados combinados para armazenamento (Local e Validade)
+  const [incomingData, setIncomingData] = useState<{[key: string]: {location: string, expDate: string}}>({});
+
+  useEffect(() => {
+    const initialData: any = {};
+    incomingBags.forEach(bag => {
+      if (!incomingData[bag.id]) {
+        initialData[bag.id] = {
+          location: '',
+          expDate: calculateDefaultExpiration(bag.component, bag.collectionDate)
+        };
+      }
+    });
+    if (Object.keys(initialData).length > 0) {
+      setIncomingData(prev => ({ ...prev, ...initialData }));
+    }
+  }, [incomingBags]);
 
   const filteredBags = bags.filter(bag => {
     const matchesSearch = bag.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          bag.type.toLowerCase().includes(searchTerm.toLowerCase());
+                          bag.component.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'todos' || bag.type === filterType;
     const matchesStatus = filterStatus === 'todos' || bag.status === filterStatus;
     return matchesSearch && matchesType && matchesStatus;
@@ -106,22 +135,35 @@ export function StockPage() {
   };
 
   const confirmStorage = (bagId: string) => {
-    const location = storingLocation[bagId];
-    if (!location) {
-      alert('Por favor, defina um local de armazenamento.');
+    const data = incomingData[bagId];
+    if (!data?.location) {
+      alert('Por favor, defina um local de armazenamento físico.');
+      return;
+    }
+    if (!data?.expDate) {
+      alert('A data de validade é obrigatória.');
       return;
     }
 
     const bagToStore = incomingBags.find(b => b.id === bagId);
     if (bagToStore) {
-      const storedBag: BloodBag = { ...bagToStore, status: 'disponivel', location: location };
+      const storedBag: BloodBag = { 
+        ...bagToStore, 
+        status: 'disponivel', 
+        location: data.location,
+        expirationDate: data.expDate
+      };
       setBags([storedBag, ...bags]);
       setIncomingBags(incomingBags.filter(b => b.id !== bagId));
       
-      const newLocations = { ...storingLocation };
-      delete newLocations[bagId];
-      setStoringLocation(newLocations);
+      const newIncomingData = { ...incomingData };
+      delete newIncomingData[bagId];
+      setIncomingData(newIncomingData);
     }
+  };
+
+  const handleExportExcel = () => {
+    alert("Iniciando download do relatório de estoque em Excel...");
   };
 
   return (
@@ -129,9 +171,18 @@ export function StockPage() {
       
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Estoque de Sangue</h1>
-          <p className="text-slate-500 text-sm">Gerenciamento físico, validade e armazenamento.</p>
+          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Estoque de Hemocomponentes</h1>
+          <p className="text-slate-500 text-sm">Gerenciamento físico, rastreabilidade e controle de validade.</p>
         </div>
+        
+        {/* NOVO BOTÃO DE EXPORTAR */}
+        <button 
+          onClick={handleExportExcel}
+          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all"
+        >
+          <Download size={18} />
+          Exportar Excel
+        </button>
       </div>
 
       <div className="flex border-b border-gray-200">
@@ -159,7 +210,7 @@ export function StockPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input 
                   type="text" 
-                  placeholder="Buscar código ou tipo..." 
+                  placeholder="Buscar código ou hemocomponente..." 
                   className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:border-brand-red focus:ring-2 focus:ring-brand-red/10 outline-none transition-all"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -246,8 +297,8 @@ export function StockPage() {
                         checked={filteredBags.length > 0 && selectedIds.length === filteredBags.length}
                       />
                     </th>
-                    <th className="p-4">Código / Componente</th>
-                    <th className="p-4">Tipo</th>
+                    <th className="p-4">Código / Hemocomponente</th>
+                    <th className="p-4">Tipo Sanguíneo</th>
                     <th className="p-4">
                       <div className="flex items-center gap-1 cursor-pointer hover:text-slate-700">
                         Validade
@@ -282,12 +333,12 @@ export function StockPage() {
                         <td className="p-4">
                           <div className="flex flex-col">
                             <span className="font-mono font-bold text-slate-700">{bag.code}</span>
-                            <span className="text-xs text-slate-500">{bag.component}</span>
+                            <span className="text-xs font-medium text-slate-500">{bag.component}</span>
                           </div>
                         </td>
                         <td className="p-4">
                           <div className="flex items-center gap-2">
-                            <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${
+                            <span className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm ${
                               bag.type.includes('-') ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'
                             }`}>
                               {bag.type}
@@ -337,7 +388,7 @@ export function StockPage() {
               
               {filteredBags.length === 0 && (
                 <div className="p-12 text-center text-slate-400">
-                  <p>Nenhuma bolsa encontrada com os filtros atuais.</p>
+                  <p>Nenhum hemocomponente encontrado com os filtros atuais.</p>
                 </div>
               )}
             </div>
@@ -353,44 +404,60 @@ export function StockPage() {
               <p>Nenhuma bolsa aguardando armazenamento no momento.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
               {incomingBags.map(bag => (
                 <div key={bag.id} className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-all">
                    <div className="flex justify-between items-start mb-4">
                       <div>
                         <span className="font-mono font-bold text-lg text-slate-800">{bag.code}</span>
-                        <p className="text-xs text-slate-500">{bag.component}</p>
+                        <p className="text-sm font-medium text-brand-red">{bag.component}</p>
                       </div>
-                      <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${
+                      <span className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm ${
                         bag.type.includes('-') ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'
                       }`}>
                         {bag.type}
                       </span>
                    </div>
 
-                   <div className="space-y-3">
+                   <div className="space-y-4">
                       <div className="text-xs text-slate-500 flex items-center gap-1 bg-gray-50 p-2 rounded-lg">
                         <CheckCircle2 size={12} className="text-emerald-500" />
-                        Liberado pelo Lab em {new Date().toLocaleDateString('pt-BR')}
+                        Liberado pelo Laboratório em {new Date(bag.collectionDate).toLocaleDateString('pt-BR')}
                       </div>
 
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">Definir Localização Física</label>
-                        <div className="flex gap-2">
-                          <input 
-                            type="text" 
-                            className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-brand-red"
-                            placeholder="Ex: Geladeira 01 - A"
-                            value={storingLocation[bag.id] || ''}
-                            onChange={(e) => setStoringLocation({...storingLocation, [bag.id]: e.target.value})}
-                          />
-                          <button 
-                            onClick={() => confirmStorage(bag.id)}
-                            disabled={!storingLocation[bag.id]}
-                            className="px-3 bg-slate-800 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50 transition-colors"
-                          >
-                            <ArrowRight size={18} />
-                          </button>
+                      <div className="grid grid-cols-2 gap-3">
+                        {/* NOVO: Campo de Validade Editável e Pré-Preenchido */}
+                        <div className="col-span-2">
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Data de Validade <span className="text-slate-400 font-normal">(Calculada auto.)</span></label>
+                          <div className="relative">
+                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <input 
+                              type="date" 
+                              className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-brand-red text-slate-600 font-medium"
+                              value={incomingData[bag.id]?.expDate || ''}
+                              onChange={(e) => setIncomingData({...incomingData, [bag.id]: { ...incomingData[bag.id], expDate: e.target.value }})}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="col-span-2">
+                          <label className="block text-xs font-bold text-slate-700 mb-1">Localização Física</label>
+                          <div className="flex gap-2">
+                            <input 
+                              type="text" 
+                              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-brand-red"
+                              placeholder="Ex: Geladeira 01 - A"
+                              value={incomingData[bag.id]?.location || ''}
+                              onChange={(e) => setIncomingData({...incomingData, [bag.id]: { ...incomingData[bag.id], location: e.target.value }})}
+                            />
+                            <button 
+                              onClick={() => confirmStorage(bag.id)}
+                              disabled={!incomingData[bag.id]?.location || !incomingData[bag.id]?.expDate}
+                              className="px-4 bg-slate-800 text-white font-bold text-sm rounded-lg hover:bg-slate-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+                            >
+                              Guardar <ArrowRight size={16} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                    </div>

@@ -1,21 +1,79 @@
 import { useState, useRef, useEffect } from 'react';
-import { Filter, Download, Building2, ChevronDown, AlertTriangle, Droplets, Calendar, Check, Users, MapPin } from 'lucide-react';
+import { Filter, Download, Building2, ChevronDown, AlertTriangle, Droplets, Calendar, Check, Users, MapPin, Activity } from 'lucide-react';
 import { OperationsChart } from '../components/OperationsChart';
 import { StockDistributionChart } from '../components/StockDistributionChart';
 
-// Dados simulados de estoque
-const STOCK_DATA = [
-  { type: 'A+', amount: 124, status: 'stable', prediction: 15, target: 150, averageValidity: 22, entries24h: 12 },
-  { type: 'A-', amount: 12, status: 'critical', prediction: 2, target: 100, averageValidity: 8, entries24h: 0 },
-  { type: 'B+', amount: 86, status: 'stable', prediction: 20, target: 120, averageValidity: 25, entries24h: 8 },
-  { type: 'B-', amount: 34, status: 'warning', prediction: 6, target: 80, averageValidity: 14, entries24h: 2 },
-  { type: 'AB+', amount: 45, status: 'stable', prediction: 25, target: 60, averageValidity: 28, entries24h: 5 },
-  { type: 'AB-', amount: 8, status: 'critical', prediction: 1, target: 40, averageValidity: 5, entries24h: 1 },
-  { type: 'O+', amount: 210, status: 'stable', prediction: 30, target: 250, averageValidity: 20, entries24h: 18 },
-  { type: 'O-', amount: 18, status: 'critical', prediction: 3, target: 100, averageValidity: 9, entries24h: 3 },
-] as const;
+const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const;
+type BloodType = typeof BLOOD_TYPES[number];
 
-// Dados demográficos simulados por tipo sanguíneo (Correlação)
+// Dados simulados por Hemocomponente variando para CADA Tipo Sanguíneo
+const HEMOCOMPONENTS_BY_TYPE: Record<BloodType, { name: string, amount: number, target: number, prediction: number }[]> = {
+  'A+': [
+    { name: 'Concentrado de Hemácias', amount: 85, target: 100, prediction: 12 },
+    { name: 'Concentrado de Plaquetas', amount: 15, target: 40, prediction: 2 },
+    { name: 'Plasma Fresco Congelado', amount: 120, target: 150, prediction: 45 },
+    { name: 'Crioprecipitado', amount: 45, target: 50, prediction: 60 },
+    { name: 'Concentrado de Granulócitos', amount: 5, target: 20, prediction: 1 },
+    { name: 'Plasma Isento de Crio', amount: 30, target: 50, prediction: 30 },
+  ],
+  'A-': [
+    { name: 'Concentrado de Hemácias', amount: 12, target: 50, prediction: 3 },
+    { name: 'Concentrado de Plaquetas', amount: 8, target: 20, prediction: 4 },
+    { name: 'Plasma Fresco Congelado', amount: 40, target: 60, prediction: 25 },
+    { name: 'Crioprecipitado', amount: 10, target: 20, prediction: 40 },
+    { name: 'Concentrado de Granulócitos', amount: 0, target: 5, prediction: 0 },
+    { name: 'Plasma Isento de Crio', amount: 15, target: 25, prediction: 20 },
+  ],
+  'B+': [
+    { name: 'Concentrado de Hemácias', amount: 65, target: 80, prediction: 18 },
+    { name: 'Concentrado de Plaquetas', amount: 22, target: 30, prediction: 5 },
+    { name: 'Plasma Fresco Congelado', amount: 90, target: 100, prediction: 35 },
+    { name: 'Crioprecipitado', amount: 30, target: 40, prediction: 50 },
+    { name: 'Concentrado de Granulócitos', amount: 2, target: 10, prediction: 1 },
+    { name: 'Plasma Isento de Crio', amount: 25, target: 35, prediction: 28 },
+  ],
+  'B-': [
+    { name: 'Concentrado de Hemácias', amount: 8, target: 30, prediction: 2 },
+    { name: 'Concentrado de Plaquetas', amount: 4, target: 15, prediction: 1 },
+    { name: 'Plasma Fresco Congelado', amount: 20, target: 40, prediction: 15 },
+    { name: 'Crioprecipitado', amount: 5, target: 15, prediction: 30 },
+    { name: 'Concentrado de Granulócitos', amount: 0, target: 5, prediction: 0 },
+    { name: 'Plasma Isento de Crio', amount: 8, target: 15, prediction: 12 },
+  ],
+  'AB+': [
+    { name: 'Concentrado de Hemácias', amount: 40, target: 50, prediction: 20 },
+    { name: 'Concentrado de Plaquetas', amount: 18, target: 25, prediction: 6 },
+    { name: 'Plasma Fresco Congelado', amount: 150, target: 100, prediction: 80 }, 
+    { name: 'Crioprecipitado', amount: 60, target: 50, prediction: 90 },
+    { name: 'Concentrado de Granulócitos', amount: 1, target: 5, prediction: 2 },
+    { name: 'Plasma Isento de Crio', amount: 45, target: 40, prediction: 50 },
+  ],
+  'AB-': [
+    { name: 'Concentrado de Hemácias', amount: 5, target: 20, prediction: 4 },
+    { name: 'Concentrado de Plaquetas', amount: 2, target: 10, prediction: 1 },
+    { name: 'Plasma Fresco Congelado', amount: 30, target: 40, prediction: 25 },
+    { name: 'Crioprecipitado', amount: 8, target: 15, prediction: 35 },
+    { name: 'Concentrado de Granulócitos', amount: 0, target: 2, prediction: 0 },
+    { name: 'Plasma Isento de Crio', amount: 12, target: 20, prediction: 18 },
+  ],
+  'O+': [
+    { name: 'Concentrado de Hemácias', amount: 180, target: 200, prediction: 8 }, 
+    { name: 'Concentrado de Plaquetas', amount: 35, target: 60, prediction: 3 },
+    { name: 'Plasma Fresco Congelado', amount: 80, target: 120, prediction: 20 },
+    { name: 'Crioprecipitado', amount: 40, target: 60, prediction: 45 },
+    { name: 'Concentrado de Granulócitos', amount: 8, target: 15, prediction: 2 },
+    { name: 'Plasma Isento de Crio', amount: 20, target: 40, prediction: 15 },
+  ],
+  'O-': [
+    { name: 'Concentrado de Hemácias', amount: 15, target: 80, prediction: 1 }, 
+    { name: 'Concentrado de Plaquetas', amount: 5, target: 20, prediction: 1 },
+    { name: 'Plasma Fresco Congelado', amount: 25, target: 50, prediction: 12 },
+    { name: 'Crioprecipitado', amount: 12, target: 25, prediction: 30 },
+    { name: 'Concentrado de Granulócitos', amount: 1, target: 5, prediction: 1 },
+    { name: 'Plasma Isento de Crio', amount: 10, target: 20, prediction: 10 },
+  ],
+};
+
 const DEMOGRAPHICS_BY_TYPE: Record<string, { gender: { m: number, f: number }, age: number[] }> = {
   'A+': { gender: { m: 45, f: 55 }, age: [30, 45, 15, 10] },
   'A-': { gender: { m: 60, f: 40 }, age: [20, 50, 20, 10] },
@@ -24,32 +82,20 @@ const DEMOGRAPHICS_BY_TYPE: Record<string, { gender: { m: number, f: number }, a
   'AB+': { gender: { m: 40, f: 60 }, age: [35, 40, 15, 10] },
   'AB-': { gender: { m: 65, f: 35 }, age: [15, 55, 20, 10] },
   'O+': { gender: { m: 48, f: 52 }, age: [32, 38, 20, 10] },
-  'O-': { gender: { m: 70, f: 30 }, age: [20, 40, 30, 10] }, // Ex: O- predominantemente masculino neste mock
+  'O-': { gender: { m: 70, f: 30 }, age: [20, 40, 30, 10] },
 };
 
-type BloodType = typeof STOCK_DATA[number]['type'];
-
 function CustomSelect({ 
-  options, 
-  value, 
-  onChange, 
-  icon: Icon,
-  align = 'left'
+  options, value, onChange, icon: Icon, align = 'left'
 }: { 
-  options: { label: string, value: string }[], 
-  value: string, 
-  onChange: (val: string) => void,
-  icon?: any,
-  align?: 'left' | 'right'
+  options: { label: string, value: string }[], value: string, onChange: (val: string) => void, icon?: any, align?: 'left' | 'right'
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) setIsOpen(false);
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -71,16 +117,11 @@ function CustomSelect({
       </button>
 
       {isOpen && (
-        <div 
-          className={`absolute top-full mt-2 w-max min-w-full bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden animate-fade-in-up ${align === 'right' ? 'right-0' : 'left-0'}`}
-        >
+        <div className={`absolute top-full mt-2 w-max min-w-full bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden animate-fade-in-up ${align === 'right' ? 'right-0' : 'left-0'}`}>
           {options.map((option) => (
             <button
               key={option.value}
-              onClick={() => {
-                onChange(option.value);
-                setIsOpen(false);
-              }}
+              onClick={() => { onChange(option.value); setIsOpen(false); }}
               className={`w-full text-left px-4 py-2.5 text-xs hover:bg-gray-50 flex items-center justify-between ${value === option.value ? 'text-brand-red font-semibold bg-red-50' : 'text-slate-600'}`}
             >
               {option.label}
@@ -94,15 +135,14 @@ function CustomSelect({
 }
 
 export function DashboardHome() {
-  const [activeTab, setActiveTab] = useState<BloodType>(STOCK_DATA[0].type);
+  const [activeTab, setActiveTab] = useState<BloodType>('O+');
   const [selectedUnit, setSelectedUnit] = useState('consolidado');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
 
-  const activeData = STOCK_DATA.find(d => d.type === activeTab)!;
-  const percentage = Math.min((activeData.amount / activeData.target) * 100, 100);
-  
-  // Dados demográficos baseados no tipo selecionado (Correlação)
+  // Busca os hemocomponentes com base no tipo selecionado na aba
+  const activeHemocomponents = HEMOCOMPONENTS_BY_TYPE[activeTab];
+
   const demographics = DEMOGRAPHICS_BY_TYPE[activeTab];
   const genderData = [
     { label: 'Masculino', value: demographics.gender.m, color: '#3b82f6' },
@@ -115,19 +155,9 @@ export function DashboardHome() {
     { label: '60+', value: demographics.age[3], height: 'h-8' },
   ];
 
-  const statusStyles = {
-    critical: { color: 'text-red-700', bg: 'bg-red-50', bar: 'bg-red-500', border: 'border-red-100' },
-    warning: { color: 'text-amber-700', bg: 'bg-amber-50', bar: 'bg-amber-500', border: 'border-amber-100' },
-    stable: { color: 'text-emerald-700', bg: 'bg-emerald-50', bar: 'bg-emerald-500', border: 'border-emerald-100' }
-  };
-
-  const currentStyle = statusStyles[activeData.status];
-
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
-        setIsFilterOpen(false);
-      }
+      if (filterRef.current && !filterRef.current.contains(event.target as Node)) setIsFilterOpen(false);
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -140,7 +170,7 @@ export function DashboardHome() {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Painel de Controle</h1>
-          <p className="text-slate-500 text-sm">Visão geral da operação e níveis técnicos.</p>
+          <p className="text-slate-500 text-sm">Visão geral da operação e níveis por Hemocomponente.</p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 relative">
@@ -159,186 +189,111 @@ export function DashboardHome() {
 
           <div className="flex gap-2" ref={filterRef}>
             <div className="relative">
-              <button 
-                onClick={() => setIsFilterOpen(!isFilterOpen)}
-                className={`px-4 py-2 bg-white border rounded-lg shadow-sm transition-colors text-xs font-medium flex items-center gap-2 h-full ${isFilterOpen ? 'border-brand-red text-brand-red bg-red-50' : 'border-gray-200 text-slate-600 hover:bg-gray-50'}`}
-              >
-                 <Filter size={16} />
-                 <span>Filtros</span>
+              <button onClick={() => setIsFilterOpen(!isFilterOpen)} className={`px-4 py-2 bg-white border rounded-lg shadow-sm transition-colors text-xs font-medium flex items-center gap-2 h-full ${isFilterOpen ? 'border-brand-red text-brand-red bg-red-50' : 'border-gray-200 text-slate-600 hover:bg-gray-50'}`}>
+                 <Filter size={16} /> <span>Filtros</span>
               </button>
-              
               {isFilterOpen && (
                 <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-100 rounded-xl shadow-xl z-50 p-4 animate-fade-in-up">
                   <div className="space-y-4">
                     <div>
                       <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Período</label>
                       <div className="space-y-2">
-                        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                          <input type="radio" name="period" className="text-brand-red focus:ring-brand-red" defaultChecked /> 
-                          Hoje
-                        </label>
-                        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                          <input type="radio" name="period" className="text-brand-red focus:ring-brand-red" /> 
-                          Esta Semana
-                        </label>
-                        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                          <input type="radio" name="period" className="text-brand-red focus:ring-brand-red" /> 
-                          Este Mês
-                        </label>
+                        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer"><input type="radio" name="period" className="text-brand-red focus:ring-brand-red" defaultChecked /> Hoje</label>
+                        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer"><input type="radio" name="period" className="text-brand-red focus:ring-brand-red" /> Esta Semana</label>
+                        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer"><input type="radio" name="period" className="text-brand-red focus:ring-brand-red" /> Este Mês</label>
                       </div>
                     </div>
                     <div className="pt-2 border-t border-gray-100">
-                      <button className="w-full py-2 bg-brand-red text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors">
-                        Aplicar Filtros
-                      </button>
+                      <button className="w-full py-2 bg-brand-red text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors">Aplicar Filtros</button>
                     </div>
                   </div>
                 </div>
               )}
             </div>
-
             <button className="px-4 py-2 text-brand-red bg-red-50 border border-red-100 rounded-lg hover:bg-red-100 shadow-sm transition-colors text-xs font-medium flex items-center gap-2 h-full">
-               <Download size={16} />
-               <span>Exportar</span>
+               <Download size={16} /> <span>Exportar</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Cartão Principal: Status do Estoque */}
+      {/* Cartão Principal: Status por Hemocomponente */}
       <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="border-b border-gray-100 overflow-x-auto">
-          <div className="flex p-2 min-w-max gap-1">
-            {STOCK_DATA.map((item) => (
+        <div className="border-b border-gray-100 overflow-x-auto bg-slate-50">
+          <div className="flex p-3 min-w-max gap-2">
+            {BLOOD_TYPES.map((type) => (
               <button
-                key={item.type}
-                onClick={() => setActiveTab(item.type)}
-                className={`flex-1 min-w-[70px] py-3 px-2 rounded-lg text-sm font-bold transition-all flex flex-col items-center gap-1 border ${
-                  activeTab === item.type 
-                    ? 'bg-slate-100 border-slate-200 text-slate-800 shadow-sm' 
-                    : 'bg-transparent border-transparent text-slate-400 hover:bg-gray-50 hover:text-slate-600'
+                key={type}
+                onClick={() => setActiveTab(type)}
+                className={`flex-1 min-w-[70px] py-3 px-2 rounded-xl text-sm font-bold transition-all flex flex-col items-center gap-1 border ${
+                  activeTab === type 
+                    ? 'bg-brand-red border-brand-red text-white shadow-md scale-105' 
+                    : 'bg-white border-gray-200 text-slate-500 hover:bg-red-50 hover:text-brand-red hover:border-red-200'
                 }`}
               >
-                <span className="text-lg">{item.type}</span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === item.type ? 'bg-white border border-slate-200 shadow-sm' : ''}`}>
-                  {item.amount} un
-                </span>
+                <span className="text-xl">{type}</span>
               </button>
             ))}
           </div>
         </div>
 
         <div className="p-6 lg:p-8">
-          <div className="flex flex-col lg:flex-row gap-8 items-center">
-            
-            <div className="flex-1 w-full space-y-6">
-              <div className="flex items-start justify-between">
-                <div>
-                   <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Status do Estoque</h2>
-                   <div className="flex items-center gap-3">
-                     <div className="flex items-baseline gap-2">
-                        <span className="text-4xl font-extrabold text-slate-800 tracking-tight">{activeTab}</span>
-                        <div className="h-8 w-px bg-slate-200 mx-2"></div>
-                     </div>
-                     <div className="flex flex-col">
-                        <span className="text-2xl font-bold text-slate-700">{activeData.amount} <span className="text-sm text-slate-400 font-normal">bolsas</span></span>
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full w-fit ${currentStyle.bg} ${currentStyle.color}`}>
-                          {activeData.status === 'critical' ? 'NÍVEL CRÍTICO' : activeData.status === 'warning' ? 'ATENÇÃO' : 'ESTÁVEL'}
-                        </span>
-                     </div>
-                   </div>
-                </div>
-
-                {activeData.prediction < 7 && (
-                  <div className="flex items-center gap-3 px-4 py-3 bg-orange-50 border border-orange-100 rounded-xl text-orange-700 animate-pulse-slow">
-                    <div className="bg-orange-100 p-2 rounded-lg">
-                      <AlertTriangle size={20} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold uppercase opacity-80">Risco de Esgotamento</p>
-                      <p className="text-sm font-bold">Previsão: {activeData.prediction} dias</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs font-medium text-slate-400">
-                  <span>0</span>
-                  <span>Meta: {activeData.target} bolsas</span>
-                </div>
-                <div className="h-3 w-full bg-gray-100 rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full rounded-full transition-all duration-700 ${currentStyle.bar}`} 
-                    style={{ width: `${percentage}%` }} 
-                  />
-                </div>
-                <p className="text-xs text-slate-400 text-right pt-1">
-                  Capacidade atual: <strong>{Math.round(percentage)}%</strong> da meta operacional.
-                </p>
-              </div>
-            </div>
-
-            <div className="w-full lg:w-px h-px lg:h-32 bg-gray-100"></div>
-
-            <div className="w-full lg:w-1/3 grid grid-cols-2 gap-4">
-               <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 hover:bg-white hover:shadow-sm transition-all">
-                  <div className="flex items-center gap-2 text-slate-500 mb-2">
-                    <Droplets size={16} className="text-emerald-500" />
-                    <span className="text-xs font-bold uppercase">Entradas (24h)</span>
-                  </div>
-                  <p className="text-2xl font-bold text-slate-700">+{activeData.entries24h}</p>
-               </div>
-
-               <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 hover:bg-white hover:shadow-sm transition-all">
-                  <div className="flex items-center gap-2 text-slate-500 mb-2">
-                    <Calendar size={16} className="text-blue-500" />
-                    <span className="text-xs font-bold uppercase">Validade Média</span>
-                  </div>
-                  <p className="text-2xl font-bold text-slate-700">{activeData.averageValidity} dias</p>
-               </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Gráficos de Operação e Distribuição */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm relative z-0">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-base font-bold text-slate-800">Movimentação Operacional</h3>
-              <p className="text-xs text-slate-400">Entradas vs Saídas de bolsas</p>
-            </div>
-            <div className="w-40 relative z-20">
-              <CustomSelect 
-                value="7d"
-                onChange={() => {}}
-                align="right"
-                options={[
-                  { label: 'Últimos 7 dias', value: '7d' },
-                  { label: 'Últimos 30 dias', value: '30d' }
-                ]}
-              />
-            </div>
-          </div>
-          <div className="relative z-0">
-             <OperationsChart />
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <div className="flex items-center justify-between mb-6">
+          <div className="mb-6 border-b border-gray-100 pb-4 flex justify-between items-end">
              <div>
-               <h3 className="text-base font-bold text-slate-800">Distribuição</h3>
-               <p className="text-xs text-slate-400">Por hemocomponente</p>
+                <h2 className="text-xl font-bold text-slate-800 tracking-tight">Estoque <span className="text-brand-red">{activeTab}</span></h2>
+                <p className="text-sm text-slate-500">Níveis de segurança de todos os hemocomponentes derivados deste tipo sanguíneo.</p>
              </div>
           </div>
-           <StockDistributionChart />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
+            {activeHemocomponents.map((comp) => {
+              const percentage = Math.min((comp.amount / comp.target) * 100, 100);
+              const isCritical = percentage < 25;
+              const isWarning = percentage >= 25 && percentage < 50;
+              
+              const barColor = isCritical ? 'bg-red-500' : isWarning ? 'bg-amber-500' : 'bg-emerald-500';
+              const bgColor = isCritical ? 'bg-red-50' : isWarning ? 'bg-amber-50' : 'bg-emerald-50';
+              const textColor = isCritical ? 'text-red-700' : isWarning ? 'text-amber-700' : 'text-emerald-700';
+
+              return (
+                <div key={comp.name} className="p-5 rounded-2xl border border-gray-100 hover:shadow-md transition-shadow bg-white">
+                   <div className="flex justify-between items-start mb-4">
+                     <div>
+                       <h3 className="text-sm font-bold text-slate-700 w-40 truncate" title={comp.name}>{comp.name}</h3>
+                       <div className="flex items-baseline gap-1 mt-1">
+                          <span className="text-2xl font-extrabold text-slate-800">{comp.amount}</span>
+                          <span className="text-xs text-slate-400 font-medium">/ {comp.target} un</span>
+                       </div>
+                     </div>
+                     <span className={`text-[10px] font-bold px-2 py-1 rounded-lg uppercase ${bgColor} ${textColor}`}>
+                        {isCritical ? 'Crítico' : isWarning ? 'Atenção' : 'Estável'}
+                     </span>
+                   </div>
+
+                   <div className="space-y-2 mb-4">
+                    <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all duration-700 ${barColor}`} style={{ width: `${percentage}%` }} />
+                    </div>
+                  </div>
+
+                  {comp.prediction <= 5 && (
+                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 text-xs font-bold text-red-600">
+                      <AlertTriangle size={14} /> Previsão de esgotamento: {comp.prediction} dias
+                    </div>
+                  )}
+                  {comp.prediction > 5 && (
+                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 text-xs font-medium text-slate-400">
+                      <Activity size={14} /> Abastecido para {comp.prediction} dias
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </section>
 
-      {/* Analytics do Doador (Novos Gráficos de Correlação) */}
+      {/* Analytics */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
           <div className="flex items-center gap-2 mb-6">
@@ -382,7 +337,7 @@ export function DashboardHome() {
                 </div>
                 <div 
                   className={`w-12 md:w-16 bg-brand-red/90 rounded-t-lg transition-all duration-500 hover:bg-brand-red ${item.height}`}
-                  style={{ height: `${item.value * 2.5}px` }} // Altura dinâmica baseada no valor
+                  style={{ height: `${item.value * 2.5}px` }} 
                 ></div>
               </div>
             ))}

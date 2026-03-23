@@ -1,7 +1,8 @@
-import { useNavigate } from 'react-router-dom'; // Importar useNavigate
+import { useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Users, 
+  UserPlus, 
   FlaskConical, 
   Package, 
   Truck, 
@@ -24,11 +25,9 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
-  const navigate = useNavigate(); // Hook de navegação
+  const navigate = useNavigate();
 
   const handleLogout = () => {
-    // Aqui você limparia o token de autenticação no futuro
-    // localStorage.removeItem('token'); 
     navigate('/login');
   };
 
@@ -67,7 +66,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
           <div onClick={() => window.innerWidth < 1024 && onClose()}>
             <SidebarItem icon={LayoutDashboard} label="Dashboard" to="/dashboard" exact={true} />
-            <SidebarItem icon={Users} label="Doadores" to="/dashboard/doadores" />
+            <SidebarItem icon={Users} label="Lista de Doadores" to="/dashboard/doadores" exact={true} />
+            <SidebarItem icon={UserPlus} label="Novo Doador" to="/dashboard/doadores/novo" />
           </div>
 
           <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-4 mt-6">
