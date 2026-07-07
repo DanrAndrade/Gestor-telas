@@ -5,19 +5,7 @@ import { PageHeader, Card, Btn, Badge, Modal, InputField, SelectField } from '..
 const TABS = ['consulta','procedimento','exame'] as const;
 type TabType = typeof TABS[number];
 
-const MOCK_ATENDIMENTOS: any = { agendados: [], andamento: [], finalizados: [], cancelados: [] }; // TODO (Backend): Substituir por API,
-    { id: 2, nome: 'Retorno', duracao: 20, valor: 80, status: 'Ativo' },
-    { id: 3, nome: 'Consulta Pediátrica', duracao: 30, valor: 200, status: 'Ativo' },
-  ],
-  procedimento: [
-    { id: 4, nome: 'Curativos', duracao: 20, valor: 60, status: 'Ativo' },
-    { id: 5, nome: 'Sutura', duracao: 40, valor: 150, status: 'Ativo' },
-  ],
-  exame: [
-    { id: 6, nome: 'ECG', duracao: 15, valor: 90, status: 'Ativo' },
-    { id: 7, nome: 'Espirometria', duracao: 30, valor: 120, status: 'Ativo' },
-  ],
-};
+const MOCK_ATENDIMENTOS: any = { agendados: [], andamento: [], finalizados: [], cancelados: [] };
 
 export function AdminAtendimentosPage() {
   const [tab, setTab] = useState<TabType>('consulta');

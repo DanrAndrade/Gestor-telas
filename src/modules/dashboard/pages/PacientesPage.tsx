@@ -217,14 +217,32 @@ export function PacientesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                      <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                        <button title="Ver Perfil" className="p-1.5 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded" onClick={() => setPerfilAtivo(p)}><FileText size={16}/></button>
-                        <button title="Iniciar Consulta" className="p-1.5 text-slate-400 hover:text-brand-primary hover:bg-brand-light rounded" onClick={() => { setPerfilAtivo(p); setModalConsultaOpen(true); }}><Stethoscope size={16}/></button>
-                        <button title="Excluir" className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded"><Trash2 size={16}/></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {loadingPacientes ? (
+                  <tr><td colSpan={6} className="text-center py-10 text-slate-500">Carregando pacientes...</td></tr>
+                ) : pacientes.length === 0 ? (
+                  <tr><td colSpan={6} className="text-center py-10 text-slate-500">Nenhum paciente encontrado.</td></tr>
+                ) : (
+                  pacientes.filter(p => p.nome.toLowerCase().includes(busca.toLowerCase()) || p.cpf.includes(busca) || (p.historico_cid && p.historico_cid.some(c => c.toLowerCase().includes(busca.toLowerCase())))).map((p, i) => (
+                    <tr key={i} className="hover:bg-brand-light/20 transition-colors group cursor-pointer" onClick={() => setPerfilAtivo(p)}>
+                      <td className="px-5 py-4 font-bold text-slate-800">{p.nome}</td>
+                      <td className="px-5 py-4 text-slate-600">{p.cpf}</td>
+                      <td className="px-5 py-4 text-slate-600">{p.tel}</td>
+                      <td className="px-5 py-4">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold ${p.plano === 'Particular' ? 'bg-gray-100 text-gray-700' : 'bg-brand-light text-brand-dark'}`}>
+                          {p.plano}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-slate-600 text-sm">{p.ultima}</td>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                          <button title="Ver Perfil" className="p-1.5 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded" onClick={() => setPerfilAtivo(p)}><FileText size={16}/></button>
+                          <button title="Iniciar Consulta" className="p-1.5 text-slate-400 hover:text-brand-primary hover:bg-brand-light rounded" onClick={() => { setPerfilAtivo(p); setModalConsultaOpen(true); }}><Stethoscope size={16}/></button>
+                          <button title="Excluir" className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded"><Trash2 size={16}/></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
