@@ -118,7 +118,7 @@ export function PacientesPage() {
       setMemedToken(token);
       if (memedScriptRef.current) memedScriptRef.current.remove();
       const script = document.createElement('script');
-      script.src = 'https://memed.com.br/modulos/plataforma.sinapse-prescricao/build/sinapse-prescricao.min.js';
+      script.src = 'https://integrations.memed.com.br/modulos/plataforma.sinapse-prescricao/build/sinapse-prescricao.min.js';
       script.setAttribute('data-token', token);
       script.setAttribute('data-color', '#0f4c7a');
       script.onload = () => setMemedLoading(false);

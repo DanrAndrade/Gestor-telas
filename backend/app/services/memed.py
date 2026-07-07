@@ -1,9 +1,12 @@
 import os
 import httpx
+from dotenv import load_dotenv
 
-MEMED_API_KEY = os.getenv("MEMED_API_KEY", "")
-MEMED_SECRET_KEY = os.getenv("MEMED_SECRET_KEY", "")
-MEMED_BASE_URL = os.getenv("MEMED_BASE_URL", "https://api.memed.com.br/v1")
+load_dotenv()
+
+MEMED_API_KEY = os.getenv("MEMED_API_KEY", "iJGiB4kjDGOLeDFPWMG3no9VnN7Abpqe3w1jEFm6olkhkZD6oSfSmYCm")
+MEMED_SECRET_KEY = os.getenv("MEMED_SECRET_KEY", "Xe8M5GvBGCr4FStKfxXKisRo3SfYKI7KrTMkJpCAstzu2yXVN4av5nmL")
+MEMED_BASE_URL = os.getenv("MEMED_BASE_URL", "https://integrations.api.memed.com.br/v1")
 
 HEADERS = {'Accept': 'application/vnd.api+json', 'Content-Type': 'application/json'}
 
