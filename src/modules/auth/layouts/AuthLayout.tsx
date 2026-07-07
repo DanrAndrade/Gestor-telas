@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import { Droplets } from 'lucide-react';
+import { HeartPulse } from 'lucide-react';
 
 interface AuthLayoutProps {
   children: ReactNode;
@@ -39,14 +39,14 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
 
              <div className="relative z-10 h-full flex flex-col justify-between p-8 text-white">
                 <div className="flex items-center gap-3">
-                  <Droplets className="w-8 h-8 text-brand-red drop-shadow-md" />
-                  <span className="text-2xl font-bold tracking-tight text-white drop-shadow-md">Hemogestor</span>
+                  <HeartPulse className="w-8 h-8 text-emerald-400 drop-shadow-md" />
+                  <span className="text-2xl font-bold tracking-tight text-white drop-shadow-md">Gontijo Clinic G3</span>
                 </div>
 
                 <div className="mb-4">
                    <div className="bg-black/20 backdrop-blur-md p-6 rounded-2xl border border-white/5 shadow-lg">
                       <p className="text-lg font-medium leading-relaxed text-gray-100">
-                        "Gestão inteligente para salvar vidas. Conectando doadores e hemocentros com eficiência e segurança."
+                        "Gestão inteligente em saúde. Conectando pacientes e profissionais com excelência e segurança."
                       </p>
                    </div>
                 </div>
@@ -61,8 +61,8 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
             
             {/* Header Mobile */}
             <div className="flex lg:hidden flex-col items-center mb-8">
-              <Droplets className="w-12 h-12 text-brand-red mb-3" />
-              <span className="text-2xl font-bold text-brand-red">Hemogestor</span>
+              <HeartPulse className="w-12 h-12 text-brand-primary mb-3" />
+              <span className="text-2xl font-bold text-brand-primary">Gontijo Clinic G3</span>
             </div>
 
             <div className="mb-10 text-center lg:text-left">
@@ -78,7 +78,7 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
       
       {/* Footer fora do card */}
       <div className="absolute bottom-4 text-center w-full pointer-events-none opacity-40 text-xs hidden lg:block">
-        &copy; 2026 Avda Software &bull; Hemogestor
+        &copy; 2026 &bull; Gontijo Clinic G3
       </div>
     </div>
   );

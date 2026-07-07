@@ -268,7 +268,7 @@ export function PacientesPage() {
     <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Cadastro de Paciente" maxWidth="max-w-4xl">
       <div className="space-y-6">
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pb-32">
           {/* Coluna Esquerda - Info Básica */}
           <div className="md:col-span-2 space-y-4">
             <h4 className="text-sm font-bold text-slate-700 border-b border-gray-100 pb-2">Informações Pessoais (Obrigatórios)</h4>
@@ -344,7 +344,7 @@ export function PacientesPage() {
                    className="w-full border border-gray-200 bg-white rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
                  />
                  {alergiaSugestoes.length > 0 && (
-                   <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-36 overflow-y-auto">
+                   <div className="absolute z-[9999] mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-36 overflow-y-auto">
                      {alergiaSugestoes.map(item => (
                        <button type="button" key={item.id} onClick={() => adicionarAlergia(item)} className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 flex items-center gap-2">
                          <Pill size={13} className="text-red-400"/>{item.nome}
@@ -644,7 +644,7 @@ export function PacientesPage() {
                         className="w-full border border-red-200 bg-white rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
                       />
                       {alergiaSugestoes.length > 0 && (
-                        <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-36 overflow-y-auto">
+                        <div className="absolute z-[9999] mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-36 overflow-y-auto">
                           {alergiaSugestoes.map(item => (
                             <button key={item.id} onClick={() => adicionarAlergia(item)} className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 flex items-center gap-2">
                               <Pill size={13} className="text-red-400"/>{item.nome}

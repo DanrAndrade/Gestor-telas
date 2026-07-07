@@ -13,9 +13,9 @@ export function ForgotPasswordPage() {
     >
       <form className="space-y-6">
         <Input 
-          label="E-mail Corporativo" 
+          label="E-mail" 
           type="email" 
-          placeholder="ex: doutor@hemocentro.gov.br" 
+          placeholder="ex: paciente@email.com" 
           icon={User}
         />
 
@@ -27,7 +27,7 @@ export function ForgotPasswordPage() {
 
           <Link 
             to="/login" 
-            className="flex items-center justify-center gap-2 text-sm font-medium text-ui-muted hover:text-brand-red transition-colors"
+            className="flex items-center justify-center gap-2 text-sm font-medium text-ui-muted hover:text-brand-primary transition-colors"
           >
             <ArrowLeft size={16} />
             Voltar para o Login

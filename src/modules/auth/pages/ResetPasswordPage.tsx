@@ -1,5 +1,5 @@
 import React from 'react';
-import { Lock, KeyRound, CheckCircle2, ArrowRight, Droplets } from 'lucide-react';
+import { Lock, KeyRound, CheckCircle2, ArrowRight, HeartPulse } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
@@ -28,8 +28,8 @@ export function ResetPasswordPage() {
       <div className="w-full max-w-md relative z-10">
         
         <div className="flex items-center justify-center gap-3 mb-8">
-          <Droplets className="w-10 h-10 text-brand-red" />
-          <span className="text-3xl font-bold text-brand-red tracking-tight">Hemogestor</span>
+          <HeartPulse className="w-10 h-10 text-brand-primary" />
+          <span className="text-3xl font-bold text-brand-primary tracking-tight">Gontijo Clinic G3</span>
         </div>
 
         <div className="bg-white p-10 rounded-[2rem] shadow-xl border border-gray-100">
