@@ -1,11 +1,7 @@
 import { Shield, CheckCircle2, XCircle, Lock, Users, Grid } from 'lucide-react';
 import { PageHeader, Card, Btn, Badge } from '../../../components/ui/shared';
 
-const MOCK_USERS = [
-  { id: 1, nome: 'Dr. João Silva', email: 'joao@clinica.com', perfil: 'Profissional de Saúde' },
-  { id: 2, nome: 'Maria Recepcionista', email: 'maria@clinica.com', perfil: 'Recepcionista' },
-  { id: 3, nome: 'Admin Sistema', email: 'admin@clinica.com', perfil: 'Administrador' },
-];
+const MOCK_USERS : any[] = []; // TODO (Backend): Substituir pela chamada da API
 
 const MODULES = ['Tela Inicial','Cadastro de Pacientes','Agenda','Recepção','Prontuário Eletrônico','Relatórios','Financeiro','Administrativo','Cadastro de Usuários'];
 const ROLES = ['Administrador','Profissional de Saúde','Recepcionista','Faturamento'];

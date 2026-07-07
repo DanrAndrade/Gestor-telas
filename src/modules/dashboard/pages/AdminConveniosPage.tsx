@@ -2,11 +2,7 @@ import { useState } from 'react';
 import { ShieldPlus, Plus, Edit2, Trash2, Save } from 'lucide-react';
 import { PageHeader, Card, Btn, Badge, Modal, InputField, SelectField } from '../../../components/ui/shared';
 
-const MOCK_CONV = [
-  { id: 1, nome: 'Unimed', codigo: 'UNI001', tipo: 'Saúde', status: 'Ativo', repasse: 80 },
-  { id: 2, nome: 'OdontoPrev', codigo: 'ODO001', tipo: 'Odontologia', status: 'Ativo', repasse: 90 },
-  { id: 3, nome: 'Particular', codigo: 'PART01', tipo: 'Particular', status: 'Ativo', repasse: 100 },
-];
+const MOCK_CONV : any[] = []; // TODO (Backend): Substituir pela chamada da API
 
 export function AdminConveniosPage() {
   const [modal, setModal] = useState(false);

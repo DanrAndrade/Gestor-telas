@@ -2,11 +2,7 @@ import { useState } from 'react';
 import { Users, Plus, Edit2, Trash2, Save, KeyRound, Check, AlertTriangle } from 'lucide-react';
 import { PageHeader, Card, Btn, Badge, Modal, InputField, SelectField } from '../../../components/ui/shared';
 
-const MOCK_USERS = [
-  { id: 1, nome: 'Dr. João Silva', email: 'joao@clinica.com', perfil: 'Profissional de Saúde', status: 'Ativo', crm: 'CRM/BA 12345' },
-  { id: 2, nome: 'Maria Recepcionista', email: 'maria@clinica.com', perfil: 'Recepcionista', status: 'Ativo', crm: '—' },
-  { id: 3, nome: 'Admin Sistema', email: 'admin@clinica.com', perfil: 'Administrador', status: 'Ativo', crm: '—' },
-];
+const MOCK_USERS : any[] = []; // TODO (Backend): Substituir pela chamada da API
 
 export function AdminCadastroPage() {
   const [modal, setModal] = useState(false);

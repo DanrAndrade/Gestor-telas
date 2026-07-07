@@ -4,17 +4,9 @@ import { PageHeader, Card, Btn, Badge, Modal, InputField, SelectField } from '..
 
 const TABS = ['custos','lab'] as const;
 
-const MOCK_CUSTOS = [
-  { id: 1, descricao: 'Aluguel Sala Médica', categoria: 'Fixo', valor: 2500, frequencia: 'Mensal', status: 'Ativo' },
-  { id: 2, descricao: 'Material de Limpeza', categoria: 'Variável', valor: 350, frequencia: 'Mensal', status: 'Ativo' },
-  { id: 3, descricao: 'Energia Elétrica', categoria: 'Fixo', valor: 800, frequencia: 'Mensal', status: 'Ativo' },
-];
+const MOCK_CUSTOS : any[] = []; // TODO (Backend): Substituir pela chamada da API
 
-const MOCK_LAB = [
-  { id: 1, exame: 'Hemograma Completo', laboratorio: 'Lab Central', custo: 25, prazo: '2 dias' },
-  { id: 2, exame: 'Glicemia em Jejum', laboratorio: 'Lab Central', custo: 15, prazo: '1 dia' },
-  { id: 3, exame: 'TSH e T4L', laboratorio: 'Lab Clínico', custo: 45, prazo: '3 dias' },
-];
+const MOCK_LAB : any[] = []; // TODO (Backend): Substituir pela chamada da API
 
 export function AdminDREPage() {
   const [tab, setTab] = useState<'custos' | 'lab'>('custos');

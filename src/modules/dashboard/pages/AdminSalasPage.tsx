@@ -2,12 +2,7 @@ import { useState } from 'react';
 import { DoorOpen, Plus, Edit2, Trash2, Info, Save } from 'lucide-react';
 import { PageHeader, Card, Btn, Badge, Modal, InputField, SelectField } from '../../../components/ui/shared';
 
-const MOCK_SALAS = [
-  { id: 1, nome: 'Sala 01', tipo: 'Consultório', capacidade: 1, status: 'Disponível' },
-  { id: 2, nome: 'Sala 02', tipo: 'Consultório', capacidade: 1, status: 'Em uso' },
-  { id: 3, nome: 'Sala 03', tipo: 'Procedimento', capacidade: 2, status: 'Disponível' },
-  { id: 4, nome: 'Sala 04', tipo: 'Odontológica', capacidade: 1, status: 'Disponível' },
-];
+const MOCK_SALAS : any[] = []; // TODO (Backend): Substituir pela chamada da API
 
 export function AdminSalasPage() {
   const [modal, setModal] = useState(false);

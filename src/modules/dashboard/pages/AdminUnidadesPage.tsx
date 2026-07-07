@@ -3,10 +3,7 @@ import { Building2, Edit2, Camera, Search, Save, Check } from 'lucide-react';
 import { PageHeader, Card, Btn, Modal, InputField, SelectField } from '../../../components/ui/shared';
 import { formatCNPJ, formatPhone, formatCEP, fetchAddressByCEP } from '../../../utils/formatters';
 
-const MOCK_UNIDADES = [
-  { id: 1, nome: 'Clínica Central', cnpj: '12.345.678/0001-00', tel: '(73) 3333-0001', cep: '45000-000', rua: 'Av. Principal', num: '100', bairro: 'Centro', cidade: 'Vitória da Conquista', uf: 'BA' },
-  { id: 2, nome: 'Unidade Sul', cnpj: '12.345.678/0002-00', tel: '(73) 3333-0002', cep: '45000-100', rua: 'Rua das Flores', num: '200', bairro: 'Boa Vista', cidade: 'Vitória da Conquista', uf: 'BA' },
-];
+const MOCK_UNIDADES : any[] = []; // TODO (Backend): Substituir pela chamada da API
 
 const ESTADOS = [
   'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',

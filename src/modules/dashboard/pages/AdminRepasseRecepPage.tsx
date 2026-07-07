@@ -2,11 +2,7 @@ import { useState } from 'react';
 import { DollarSign, Plus, Edit2, Trash2, Save } from 'lucide-react';
 import { PageHeader, Card, Btn, Badge, Modal, InputField, SelectField } from '../../../components/ui/shared';
 
-const MOCK_REPASSES = [
-  { id: 1, profissional: 'Dr. João (Dentista)', procedimento: 'Clareamento', tipo: 'Porcentagem', valor: '40%', status: 'Pendente' },
-  { id: 2, profissional: 'Dra. Ana (Dentista)', procedimento: 'Tratamento de Canal', tipo: 'Valor Fixo', valor: 'R$ 200,00', status: 'Pago' },
-  { id: 3, profissional: 'Maria (Recepção)', procedimento: 'Venda de Escova Elétrica', tipo: 'Porcentagem', valor: '5%', status: 'Pendente' },
-];
+const MOCK_REPASSES : any[] = []; // TODO (Backend): Substituir pela chamada da API
 
 export function AdminRepasseRecepPage() {
   const [modal, setModal] = useState(false);

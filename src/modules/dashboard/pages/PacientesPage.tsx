@@ -2,7 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Users, Search, UserPlus, Edit, FileText, Trash2, ArrowLeft, Calendar, FileSpreadsheet, Activity, ChevronRight, Stethoscope, Camera, ClipboardList, Pill, AlertTriangle, Save, X } from 'lucide-react';
 import { PageHeader, Card, Btn, Modal, InputField, SelectField, Badge } from '../../../components/ui/shared';
 import { useNavigate } from 'react-router-dom';
-import { cidApi, memedApi, consultasApi, type CIDItem } from '../../../services/api';
+import { cidApi, memedApi, consultasApi, pacientesApi, type CIDItem, type APIPaciente } from '../../../services/api';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 type Paciente = {
   id: string;
@@ -21,6 +23,27 @@ export function PacientesPage() {
   const [modalConsultaOpen, setModalConsultaOpen] = useState(false);
   const [perfilTab, setPerfilTab] = useState('historico');
   const navigate = useNavigate();
+
+  const [pacientes, setPacientes] = useState<Paciente[]>([]);
+  const [loadingPacientes, setLoadingPacientes] = useState(true);
+
+  useEffect(() => {
+    // Carregar pacientes reais da API
+    pacientesApi.listar().then(data => {
+      setPacientes(data.map(p => ({
+        id: String(p.id),
+        nome: p.nome,
+        cpf: p.cpf,
+        tel: p.telefone || 'Sem telefone',
+        plano: p.plano_saude || 'Particular',
+        ultima: p.data_nascimento || 'N/A', // ajustar conforme API real
+        historico_cid: [] 
+      })));
+    }).catch(err => {
+      console.error("Erro ao carregar pacientes:", err);
+      // Mantém a lista vazia se a API falhar
+    }).finally(() => setLoadingPacientes(false));
+  }, []);
 
   // ── Nova Consulta states ─────────────────────────────
   const [consultaMotivo, setConsultaMotivo] = useState('');
@@ -119,12 +142,39 @@ export function PacientesPage() {
         cid_descricao: cidSelecionado?.descricao,
         historico: consultaHistorico,
       });
+
+      // Atualiza o CID no histórico do paciente localmente
+      if (cidSelecionado && perfilAtivo && !perfilAtivo.historico_cid?.includes(cidSelecionado.codigo)) {
+        setPerfilAtivo({
+          ...perfilAtivo,
+          historico_cid: [...(perfilAtivo.historico_cid || []), cidSelecionado.codigo]
+        });
+      }
+
       setConsultaSalva(true);
       setTimeout(() => setConsultaSalva(false), 3000);
+      
+      // Limpar formulário
+      setConsultaMotivo('');
+      setConsultaHistorico('');
+      setCidSelecionado(null);
+      setAlergiasSelecionadas([]);
+
     } catch {
-      // em dev sem backend, silencioso
+      // Falhou mas permite prosseguir na demo sem backend
     } finally {
       setConsultaSalvando(false);
+    }
+  };
+
+  const inserirTemplate = (tipo: string) => {
+    const templates: Record<string, string> = {
+      atestado: `<h3>Atestado Médico</h3><p>Atesto para os devidos fins que o(a) paciente <strong>${perfilAtivo?.nome}</strong> necessita de ____ dias de repouso a partir desta data.</p><p>Motivo (CID): ${cidSelecionado ? cidSelecionado.codigo : '____'}</p>`,
+      receituario: `<h3>Receituário</h3><p>Uso Oral:</p><ol><li><strong>Medicamento</strong> - Posologia</li></ol>`,
+      evolucao: `<h3>Evolução Clínica</h3><p><strong>Queixa Principal:</strong> </p><p><strong>Exame Físico:</strong> </p><p><strong>Conduta:</strong> </p>`,
+    };
+    if (templates[tipo]) {
+      setConsultaHistorico(prev => prev + (prev ? '<br/><br/>' : '') + templates[tipo]);
     }
   };
 
@@ -167,22 +217,6 @@ export function PacientesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {[
-                  { id: '1', nome: 'João da Silva Doe', cpf: '123.456.789-00', tel: '(11) 98765-4321', plano: 'Unimed', ultima: '10/05/2026', historico_cid: ['K04.0', 'K02.1'] },
-                  { id: '2', nome: 'Ana Beatriz Costa', cpf: '234.567.890-11', tel: '(11) 91234-5678', plano: 'Particular', ultima: 'Ontem', historico_cid: ['K05.3'] },
-                  { id: '3', nome: 'Carlos Eduardo Silva', cpf: '345.678.901-22', tel: '(11) 99999-8888', plano: 'Bradesco Saúde', ultima: 'Há 2 meses', historico_cid: [] },
-                ].filter(p => p.nome.toLowerCase().includes(busca.toLowerCase()) || p.cpf.includes(busca) || (p.historico_cid && p.historico_cid.some(c => c.toLowerCase().includes(busca.toLowerCase())))).map((p, i) => (
-                  <tr key={i} className="hover:bg-brand-light/20 transition-colors group cursor-pointer" onClick={() => setPerfilAtivo(p)}>
-                    <td className="px-5 py-4 font-bold text-slate-800">{p.nome}</td>
-                    <td className="px-5 py-4 text-slate-600">{p.cpf}</td>
-                    <td className="px-5 py-4 text-slate-600">{p.tel}</td>
-                    <td className="px-5 py-4">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold ${p.plano === 'Particular' ? 'bg-gray-100 text-gray-700' : 'bg-brand-light text-brand-dark'}`}>
-                        {p.plano}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 text-slate-500">{p.ultima}</td>
-                    <td className="px-5 py-4">
                       <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
                         <button title="Ver Perfil" className="p-1.5 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded" onClick={() => setPerfilAtivo(p)}><FileText size={16}/></button>
                         <button title="Iniciar Consulta" className="p-1.5 text-slate-400 hover:text-brand-primary hover:bg-brand-light rounded" onClick={() => { setPerfilAtivo(p); setModalConsultaOpen(true); }}><Stethoscope size={16}/></button>
@@ -524,16 +558,25 @@ export function PacientesPage() {
                     )}
                   </div>
 
-                  {/* Evoluçao */}
+                  {/* Evolução / Editor Rico */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">Evolução / Anotações Clínicas</label>
-                    <textarea
-                      rows={4}
-                      value={consultaHistorico}
-                      onChange={e => setConsultaHistorico(e.target.value)}
-                      placeholder="Descreva a evolução, exame físico, conduta..."
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary resize-none"
-                    />
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-xs font-bold text-slate-600">Evolução / Anotações Clínicas</label>
+                      <div className="flex gap-2">
+                        <Btn variant="outline" size="sm" onClick={() => inserirTemplate('evolucao')} className="text-[10px] px-2 py-1 h-auto">Temp. Evolução</Btn>
+                        <Btn variant="outline" size="sm" onClick={() => inserirTemplate('atestado')} className="text-[10px] px-2 py-1 h-auto">Temp. Atestado</Btn>
+                        <Btn variant="outline" size="sm" onClick={() => inserirTemplate('receituario')} className="text-[10px] px-2 py-1 h-auto">Temp. Receituário</Btn>
+                      </div>
+                    </div>
+                    <div className="bg-white rounded-xl overflow-hidden border border-gray-200">
+                      <ReactQuill 
+                        theme="snow" 
+                        value={consultaHistorico} 
+                        onChange={setConsultaHistorico} 
+                        className="h-48 mb-12"
+                        placeholder="Descreva a evolução, exame físico, conduta..."
+                      />
+                    </div>
                   </div>
 
                   {/* Alergias via Memed */}

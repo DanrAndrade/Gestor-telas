@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { Smile, Plus, ChevronDown, ChevronRight, Edit2, Trash2, Save } from 'lucide-react';
 import { PageHeader, Card, Btn, Modal, InputField, SelectField } from '../../../components/ui/shared';
 
-const MOCK_ESP = [
-  { id: 1, nome: 'Dentística', cor: '#3B82F6', intervencoes: ['Restauração (Resina)', 'Restauração (Amálgama)', 'Clareamento'] },
+const MOCK_ESP : any[] = []; // TODO (Backend): Substituir pela chamada da API },
   { id: 2, nome: 'Endodontia', cor: '#10B981', intervencoes: ['Tratamento de Canal', 'Retratamento', 'Medicação Intracanal'] },
   { id: 3, nome: 'Periodontia', cor: '#F59E0B', intervencoes: ['Profilaxia', 'Raspagem', 'Cirurgia Periodontal'] },
 ];
