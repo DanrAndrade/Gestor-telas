@@ -336,7 +336,7 @@ export function PacientesPage() {
             
             <div className="mt-4 pt-4 border-t border-gray-200">
                <h4 className="text-sm font-bold text-slate-700 mb-2 text-red-600 flex items-center gap-2"><Activity size={16} /> Alergias</h4>
-               <InputField placeholder="Ex: Penicilina, Iodo, Dipirona..." />
+               <InputField label="Alergias" placeholder="Ex: Penicilina, Iodo, Dipirona..." />
             </div>
 
             <div className="mt-4 pt-4 border-t border-gray-200">

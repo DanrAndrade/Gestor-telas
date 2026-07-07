@@ -280,7 +280,7 @@ export function HospitalExitPage() {
                 {orders.filter(o => o.status === 'approved').map(order => (
                   <button 
                     key={order.id}
-                    onClick={() => { setProcessingOrder(order); setScannedItems([]); }}
+                    onClick={() => { setProcessingOrder(order); /* setScannedItems([]); */ }}
                     className={`w-full text-left p-4 rounded-xl border transition-all relative overflow-hidden ${
                       processingOrder?.id === order.id 
                         ? 'bg-slate-800 text-white border-slate-800 shadow-md' 
