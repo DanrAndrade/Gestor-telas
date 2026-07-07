@@ -15,7 +15,6 @@ export function ForgotPasswordPage() {
         <Input 
           label="E-mail" 
           type="email" 
-          placeholder="ex: paciente@email.com" 
           icon={User}
         />
 

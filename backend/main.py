@@ -47,9 +47,9 @@ async def upload_file(file: UploadFile = File(...)):
 async def get_memed_token():
     try:
         token = await memed.obter_token(
-            medico_cpf="12345678909", 
+            medico_cpf="87408833455", 
             medico_nome="Dr. Teste", 
-            medico_crm="12345", 
+            medico_crm="448823", 
             medico_uf="SP"
         )
         return {"token": token}

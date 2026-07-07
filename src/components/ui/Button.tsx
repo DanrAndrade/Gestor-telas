@@ -23,9 +23,9 @@ export function Button({
   const baseStyles = "inline-flex items-center justify-center rounded-xl font-bold transition-all duration-300 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98]";
   
   const variants = {
-    primary: "bg-gradient-to-r from-brand-red to-[#B71C1C] text-white shadow-lg shadow-brand-red/30 hover:shadow-xl hover:shadow-brand-red/40 hover:scale-[1.02]",
-    outline: "border-2 border-brand-red text-brand-red hover:bg-brand-red/5",
-    ghost: "text-ui-muted hover:text-brand-red hover:bg-brand-red/5"
+    primary: "bg-gradient-to-r from-emerald-500 to-brand-primary text-white shadow-lg shadow-brand-primary/30 hover:shadow-xl hover:shadow-brand-primary/40 hover:-translate-y-0.5",
+    outline: "border-2 border-brand-primary text-brand-primary hover:bg-brand-primary/5",
+    ghost: "text-ui-muted hover:text-brand-primary hover:bg-brand-primary/5"
   };
 
   return (

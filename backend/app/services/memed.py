@@ -29,8 +29,8 @@ async def obter_token(medico_cpf: str, medico_nome: str, medico_crm: str, medico
             "type": "usuarios",
             "attributes": {
                 "external_id": medico_cpf,
-                "nome": medico_nome,
-                "sobrenome": "",
+                "nome": medico_nome.split(" ")[0],
+                "sobrenome": " ".join(medico_nome.split(" ")[1:]) or "Silva",
                 "cpf": medico_cpf,
                 "board": {
                     "board_code": "CRM",

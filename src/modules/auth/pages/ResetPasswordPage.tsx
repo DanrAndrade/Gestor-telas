@@ -23,7 +23,6 @@ export function ResetPasswordPage() {
         <Input 
           label="Código de Segurança" 
           type="text" 
-          placeholder="Código recebido no e-mail" 
           icon={KeyRound}
         />
 
@@ -31,14 +30,12 @@ export function ResetPasswordPage() {
             <Input 
               label="Nova Senha" 
               type="password" 
-              placeholder="Mínimo de 8 caracteres" 
               icon={Lock}
             />
 
             <Input 
               label="Confirmar Nova Senha" 
               type="password" 
-              placeholder="Repita a nova senha" 
               icon={Lock}
             />
         </div>

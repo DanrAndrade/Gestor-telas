@@ -140,7 +140,6 @@ export function LoginPage() {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="seu@email.com"
                       className="w-full pl-14 pr-6 py-5 bg-white/60 border border-white rounded-[24px] focus:outline-none focus:ring-4 focus:ring-brand-primary/10 focus:bg-white/90 transition-all text-sm font-semibold placeholder:text-slate-300 shadow-sm"
                     />
                   </div>
@@ -155,7 +154,6 @@ export function LoginPage() {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
                       className="w-full pl-14 pr-12 py-5 bg-white/60 border border-white rounded-[24px] focus:outline-none focus:ring-4 focus:ring-brand-primary/10 focus:bg-white/90 transition-all text-sm font-semibold placeholder:text-slate-300 shadow-sm"
                     />
                     <button 
