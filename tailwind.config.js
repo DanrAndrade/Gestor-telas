@@ -7,12 +7,20 @@ export default {
     extend: {
       colors: {
         brand: {
-          red: '#D32F2F',
-          dark: '#B71C1C',
-          light: '#FFEBEE',
+          primary: 'var(--color-brand-primary)',
+          dark: 'var(--color-brand-dark)',
+          light: 'var(--color-brand-light)',
+        },
+        sidebar: {
+          bg: 'var(--color-sidebar-bg)',
+          text: 'var(--color-sidebar-text)',
+        },
+        topbar: {
+          bg: 'var(--color-topbar-bg)',
+          text: 'var(--color-topbar-text)',
         },
         ui: {
-          bg: '#F8FAFC',
+          bg: '#F1F5F9',
           card: '#FFFFFF',
           border: '#E2E8F0',
           text: '#0F172A',
@@ -28,7 +36,16 @@ export default {
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
-      }
+      },
+      keyframes: {
+        'fade-in-up': {
+          '0%': { opacity: '0', transform: 'translateY(8px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
+      animation: {
+        'fade-in-up': 'fade-in-up 0.2s ease-out',
+      },
     },
   },
   plugins: [],

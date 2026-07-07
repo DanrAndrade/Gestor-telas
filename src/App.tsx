@@ -1,66 +1,70 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-
 import { LoginPage } from './modules/auth/pages/LoginPage';
-import { ForgotPasswordPage } from './modules/auth/pages/ForgotPasswordPage';
-import { ResetPasswordPage } from './modules/auth/pages/ResetPasswordPage';
-
 import { DashboardLayout } from './modules/dashboard/layouts/DashboardLayout';
-import { DashboardHome } from './modules/dashboard/pages/DashboardHome';
-import { UserProfilePage } from './modules/dashboard/pages/UserProfilePage';
-
-import { DonorsListPage } from './modules/dashboard/pages/DonorsListPage';
-import { DonorFormPage } from './modules/dashboard/pages/DonorFormPage';
-import { TriagePage } from './modules/dashboard/pages/TriagePage';
-import { CollectionPage } from './modules/dashboard/pages/CollectionPage';
-import { LabPage } from './modules/dashboard/pages/LabPage';
-import { StockPage } from './modules/dashboard/pages/StockPage';
-import { LogisticsPage } from './modules/dashboard/pages/LogisticsPage';
-import { HospitalExitPage } from './modules/dashboard/pages/HospitalExitPage';
-import { CommunicationPage } from './modules/dashboard/pages/CommunicationPage';
-
-import { AdminUsersPage } from './modules/dashboard/pages/AdminUsersPage';
-import { AdminAuditPage } from './modules/dashboard/pages/AdminAuditPage';
-import { StockConfigurationPage } from './modules/dashboard/pages/StockConfigurationPage';
-import { LabConfigurationPage } from './modules/dashboard/pages/LabConfigurationPage'; // <--- IMPORTANTE: Importação da página nova
-
-import { NotFoundPage } from './modules/common/pages/NotFoundPage';
+import { HomePage } from './modules/dashboard/pages/HomePage';
+import { PacientesPage } from './modules/dashboard/pages/PacientesPage';
+import { EstatisticasPacientesPage } from './modules/dashboard/pages/EstatisticasPacientesPage';
+import { AgendaPage } from './modules/dashboard/pages/AgendaPage';
+import { RecepcaoPage } from './modules/dashboard/pages/RecepcaoPage';
+import { ProntuarioPage } from './modules/dashboard/pages/ProntuarioPage';
+import { OdontogramaPage } from './modules/dashboard/pages/OdontogramaPage';
+import { CaixaPage } from './modules/dashboard/pages/CaixaPage';
+import { EstoquePage } from './modules/dashboard/pages/EstoquePage';
+import { RelatoriosPage } from './modules/dashboard/pages/RelatoriosPage';
+import { FinDashboardPage } from './modules/dashboard/pages/FinDashboardPage';
+import { RecebimentosPage } from './modules/dashboard/pages/RecebimentosPage';
+import { AuditoriaPage } from './modules/dashboard/pages/AuditoriaPage';
+import { AdminCadastroPage } from './modules/dashboard/pages/AdminCadastroPage';
+import { AdminControlePage } from './modules/dashboard/pages/AdminControlePage';
+import { AdminIdentidadePage } from './modules/dashboard/pages/AdminIdentidadePage';
+import { AdminUnidadesPage } from './modules/dashboard/pages/AdminUnidadesPage';
+import { AdminSalasPage } from './modules/dashboard/pages/AdminSalasPage';
+import { AdminAtendimentosPage } from './modules/dashboard/pages/AdminAtendimentosPage';
+import { AdminOdontoProcPage } from './modules/dashboard/pages/AdminOdontoProcPage';
+import { AdminConveniosPage } from './modules/dashboard/pages/AdminConveniosPage';
+import { AdminDREPage } from './modules/dashboard/pages/AdminDREPage';
+import { AdminRepasseRecepPage } from './modules/dashboard/pages/AdminRepasseRecepPage';
+import { AdminBackupPage } from './modules/dashboard/pages/AdminBackupPage';
+import { AdminNotificacoesPage } from './modules/dashboard/pages/AdminNotificacoesPage';
+import { MeuPerfilPage } from './modules/dashboard/pages/MeuPerfilPage';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
-        
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
-        
-        <Route path="/dashboard" element={<DashboardLayout />}>
-          
-          <Route index element={<DashboardHome />} />
-          <Route path="perfil" element={<UserProfilePage />} />
 
-          <Route path="doadores" element={<DonorsListPage />} />
-          <Route path="doadores/novo" element={<DonorFormPage />} />
-          <Route path="doadores/editar/:id" element={<DonorFormPage />} />
-          <Route path="triagem" element={<TriagePage />} />
-          
-          <Route path="coleta" element={<CollectionPage />} />
-          <Route path="laboratorio" element={<LabPage />} />
-          <Route path="estoque" element={<StockPage />} />
-          
-          <Route path="logistica" element={<LogisticsPage />} />
-          <Route path="saida-hospitalar" element={<HospitalExitPage />} />
-          
-          <Route path="comunicacao" element={<CommunicationPage />} />
-          <Route path="admin" element={<AdminUsersPage />} />
-          
-          <Route path="admin/configuracao" element={<StockConfigurationPage />} />
-          <Route path="admin/laboratorio" element={<LabConfigurationPage />} /> {/* <--- IMPORTANTE: Esta linha conecta o link ao arquivo */}
-          <Route path="admin/auditoria" element={<AdminAuditPage />} />
+        <Route path="/dashboard" element={<DashboardLayout />}>
+          <Route index element={<HomePage />} />
+          <Route path="perfil" element={<MeuPerfilPage />} />
+          <Route path="pacientes" element={<PacientesPage />} />
+          <Route path="estatisticas-pacientes" element={<EstatisticasPacientesPage />} />
+          <Route path="agenda" element={<AgendaPage />} />
+          <Route path="recepcao" element={<RecepcaoPage />} />
+          <Route path="prontuario" element={<ProntuarioPage />} />
+          <Route path="odontograma" element={<OdontogramaPage />} />
+          <Route path="caixa" element={<CaixaPage />} />
+          <Route path="estoque" element={<EstoquePage />} />
+          <Route path="relatorios" element={<RelatoriosPage />} />
+          <Route path="financeiro" element={<FinDashboardPage />} />
+          <Route path="financeiro/recebimentos" element={<RecebimentosPage />} />
+          <Route path="financeiro/auditoria" element={<AuditoriaPage />} />
+          <Route path="admin/usuarios" element={<AdminCadastroPage />} />
+          <Route path="admin/controle" element={<AdminControlePage />} />
+          <Route path="admin/identidade" element={<AdminIdentidadePage />} />
+          <Route path="admin/unidades" element={<AdminUnidadesPage />} />
+          <Route path="admin/salas" element={<AdminSalasPage />} />
+          <Route path="admin/atendimentos" element={<AdminAtendimentosPage />} />
+          <Route path="admin/odonto-proc" element={<AdminOdontoProcPage />} />
+          <Route path="admin/convenios" element={<AdminConveniosPage />} />
+          <Route path="admin/dre" element={<AdminDREPage />} />
+          <Route path="admin/repasse-recep" element={<AdminRepasseRecepPage />} />
+          <Route path="admin/notificacoes" element={<AdminNotificacoesPage />} />
+          <Route path="admin/backup" element={<AdminBackupPage />} />
         </Route>
 
-        <Route path="*" element={<NotFoundPage />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   );
