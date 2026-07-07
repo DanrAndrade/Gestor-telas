@@ -109,18 +109,18 @@ export function LoginPage() {
             <GlassCard className="w-full p-10 lg:p-12 rounded-[40px] md:rounded-[48px] shadow-[0_40px_100px_rgba(15,23,42,0.12)] border-white/60" opacity="bg-white/40">
               <div className="flex items-center gap-3 mb-10">
                 {theme.logoFullUrl ? (
-                   <img src={theme.logoFullUrl} alt="Logo" className="h-12 w-auto object-contain" />
+                   <img src={theme.logoFullUrl} alt="Logo" className="h-20 w-auto object-contain" />
                 ) : theme.logoIconUrl ? (
                    <div className="flex items-center gap-3">
-                     <img src={theme.logoIconUrl} alt="Logo Icon" className="w-12 h-12 object-contain" />
-                     <span className="text-2xl font-black tracking-tighter text-[#0a2e5c]">{theme.companyName || 'Gontijo Clinic G3'}</span>
+                     <img src={theme.logoIconUrl} alt="Logo Icon" className="w-16 h-16 object-contain" />
+                     <span className="text-3xl font-black tracking-tighter text-[#0a2e5c]">{theme.companyName || 'Gontijo Clinic G3'}</span>
                    </div>
                 ) : (
                   <div className="flex items-center gap-3">
-                    <div className="bg-gradient-to-br from-emerald-400 to-brand-primary p-2.5 rounded-2xl shadow-xl shadow-brand-primary/20">
-                      <HeartPulse className="text-white" size={26} />
+                    <div className="bg-gradient-to-br from-emerald-400 to-brand-primary p-3 rounded-2xl shadow-xl shadow-brand-primary/20">
+                      <HeartPulse className="text-white" size={32} />
                     </div>
-                    <span className="text-2xl font-black tracking-tighter text-[#0a2e5c]">{theme.companyName || 'Gontijo Clinic G3'}</span>
+                    <span className="text-3xl font-black tracking-tighter text-[#0a2e5c]">{theme.companyName || 'Gontijo Clinic G3'}</span>
                   </div>
                 )}
               </div>
@@ -184,8 +184,8 @@ export function LoginPage() {
                   </div>
                 )}
 
-                <button type="submit" className="w-full bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-600 hover:to-emerald-500 text-white font-bold py-6 rounded-[24px] flex items-center justify-center gap-3 transition-all shadow-xl shadow-emerald-500/30 group active:scale-[0.98] mt-6 uppercase tracking-widest text-xs border border-emerald-400/50">
-                  Entrar <ArrowRight size={20} className="group-hover:translate-x-2 transition-transform" />
+                <button type="submit" className="w-full bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-600 hover:to-emerald-500 text-white font-bold py-4 rounded-[16px] flex items-center justify-center gap-3 transition-all shadow-xl shadow-emerald-500/30 group active:scale-[0.98] mt-6 uppercase tracking-widest text-xs border border-emerald-400/50">
+                  Entrar <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
                 </button>
                 
                 {/* BOTÃO DO GOOGLE */}
@@ -198,7 +198,7 @@ export function LoginPage() {
                 <button 
                   type="button" 
                   onClick={handleGoogleLogin}
-                  className="w-full bg-white hover:bg-gray-50 border border-gray-200 text-slate-600 font-bold py-4 rounded-[24px] flex items-center justify-center gap-3 transition-all shadow-sm active:scale-[0.98] tracking-wide text-sm"
+                  className="w-full bg-white hover:bg-gray-50 border border-gray-200 text-slate-600 font-bold py-3.5 rounded-[16px] flex items-center justify-center gap-3 transition-all shadow-sm active:scale-[0.98] tracking-wide text-sm mt-2"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path
