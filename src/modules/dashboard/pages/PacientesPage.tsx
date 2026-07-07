@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { Users, Search, UserPlus, Edit, FileText, Trash2, ArrowLeft, Calendar, FileSpreadsheet, Activity, ChevronRight, Stethoscope, Camera, ClipboardList } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Users, Search, UserPlus, Edit, FileText, Trash2, ArrowLeft, Calendar, FileSpreadsheet, Activity, ChevronRight, Stethoscope, Camera, ClipboardList, Pill, AlertTriangle, Save, X } from 'lucide-react';
 import { PageHeader, Card, Btn, Modal, InputField, SelectField, Badge } from '../../../components/ui/shared';
-
 import { useNavigate } from 'react-router-dom';
+import { cidApi, memedApi, consultasApi, type CIDItem } from '../../../services/api';
 
 type Paciente = {
   id: string;
@@ -21,6 +21,112 @@ export function PacientesPage() {
   const [modalConsultaOpen, setModalConsultaOpen] = useState(false);
   const [perfilTab, setPerfilTab] = useState('historico');
   const navigate = useNavigate();
+
+  // ── Nova Consulta states ─────────────────────────────
+  const [consultaMotivo, setConsultaMotivo] = useState('');
+  const [consultaHistorico, setConsultaHistorico] = useState('');
+  const [consultaSalva, setConsultaSalva] = useState(false);
+  const [consultaSalvando, setConsultaSalvando] = useState(false);
+
+  // CID autocomplete
+  const [cidQuery, setCidQuery] = useState('');
+  const [cidSugestoes, setCidSugestoes] = useState<CIDItem[]>([]);
+  const [cidSelecionado, setCidSelecionado] = useState<CIDItem | null>(null);
+  const [cidLoading, setCidLoading] = useState(false);
+  const cidDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Memed
+  const [memedToken, setMemedToken] = useState<string | null>(null);
+  const [memedLoading, setMemedLoading] = useState(false);
+  const [memedErro, setMemedErro] = useState<string | null>(null);
+  const memedScriptRef = useRef<HTMLScriptElement | null>(null);
+
+  // Alergias via Memed
+  const [alergiaQuery, setAlergiaQuery] = useState('');
+  const [alergiaSugestoes, setAlergiaSugestoes] = useState<{id: string|number; nome: string}[]>([]);
+  const [alergiasSelecionadas, setAlergiasSelecionadas] = useState<{id: string|number; nome: string}[]>([]);
+  const alergiaDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── CID search handler ──────────────────────────────
+  const buscarCid = useCallback((q: string) => {
+    if (!q || q.length < 2) { setCidSugestoes([]); return; }
+    setCidLoading(true);
+    cidApi.buscar(q)
+      .then(data => setCidSugestoes(data))
+      .catch(() => setCidSugestoes([]))
+      .finally(() => setCidLoading(false));
+  }, []);
+
+  const handleCidChange = (val: string) => {
+    setCidQuery(val);
+    setCidSelecionado(null);
+    if (cidDebounceRef.current) clearTimeout(cidDebounceRef.current);
+    cidDebounceRef.current = setTimeout(() => buscarCid(val), 350);
+  };
+
+  // ── Alergia search handler (Memed medicamentos) ─────
+  const buscarAlergia = useCallback((q: string) => {
+    if (!q || q.length < 2) { setAlergiaSugestoes([]); return; }
+    memedApi.buscarMedicamentos(q)
+      .then(data => setAlergiaSugestoes(data))
+      .catch(() => setAlergiaSugestoes([]));
+  }, []);
+
+  const handleAlergiaChange = (val: string) => {
+    setAlergiaQuery(val);
+    if (alergiaDebounceRef.current) clearTimeout(alergiaDebounceRef.current);
+    alergiaDebounceRef.current = setTimeout(() => buscarAlergia(val), 400);
+  };
+
+  const adicionarAlergia = (item: {id: string|number; nome: string}) => {
+    if (!alergiasSelecionadas.find(a => a.id === item.id)) {
+      setAlergiasSelecionadas(prev => [...prev, item]);
+    }
+    setAlergiaQuery('');
+    setAlergiaSugestoes([]);
+  };
+
+  // ── Memed script loader ─────────────────────────────
+  const carregarMemed = useCallback(async () => {
+    setMemedLoading(true);
+    setMemedErro(null);
+    try {
+      const { token } = await memedApi.getToken();
+      setMemedToken(token);
+      if (memedScriptRef.current) memedScriptRef.current.remove();
+      const script = document.createElement('script');
+      script.src = 'https://memed.com.br/modulos/plataforma.sinapse-prescricao/build/sinapse-prescricao.min.js';
+      script.setAttribute('data-token', token);
+      script.setAttribute('data-color', '#0f4c7a');
+      script.onload = () => setMemedLoading(false);
+      script.onerror = () => { setMemedErro('Script Memed não carregou'); setMemedLoading(false); };
+      document.body.appendChild(script);
+      memedScriptRef.current = script;
+    } catch (e: any) {
+      setMemedErro(e?.message || 'Erro ao carregar Memed');
+      setMemedLoading(false);
+    }
+  }, []);
+
+  // ── Salvar consulta ─────────────────────────────────
+  const salvarConsulta = async () => {
+    setConsultaSalvando(true);
+    try {
+      await consultasApi.criar({
+        paciente_id: parseInt(perfilAtivo?.id || '0'),
+        motivo: consultaMotivo,
+        cid: cidSelecionado?.codigo,
+        cid_descricao: cidSelecionado?.descricao,
+        historico: consultaHistorico,
+      });
+      setConsultaSalva(true);
+      setTimeout(() => setConsultaSalva(false), 3000);
+    } catch {
+      // em dev sem backend, silencioso
+    } finally {
+      setConsultaSalvando(false);
+    }
+  };
 
   // -- View: Lista de Pacientes --
   if (!perfilAtivo) {
@@ -302,6 +408,7 @@ export function PacientesPage() {
             <div className="flex overflow-x-auto border-b border-gray-100 no-scrollbar">
               {[
                 { id: 'historico', label: 'Histórico Clínico' },
+                { id: 'nova_consulta', label: 'Nova Consulta' },
                 { id: 'odontograma', label: 'Odontograma' },
                 { id: 'anamnese', label: 'Anamnese' },
                 { id: 'planos', label: 'Planos / Tratam.' },
@@ -360,6 +467,138 @@ export function PacientesPage() {
                     </div>
                   </div>
 
+                </div>
+              )}
+
+              {perfilTab === 'nova_consulta' && (
+                <div className="animate-fade-in-up space-y-5">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                      <Stethoscope size={18} className="text-brand-primary"/>
+                      Nova Consulta — {perfilAtivo?.nome}
+                    </h3>
+                    {consultaSalva && (
+                      <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">✓ Salvo com sucesso</span>
+                    )}
+                  </div>
+
+                  {/* Motivo */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">Motivo da Consulta</label>
+                    <input
+                      value={consultaMotivo}
+                      onChange={e => setConsultaMotivo(e.target.value)}
+                      placeholder="Ex: Dor de dente, retorno, avaliação..."
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary"
+                    />
+                  </div>
+
+                  {/* CID autocomplete */}
+                  <div className="relative">
+                    <label className="block text-xs font-bold text-slate-600 mb-1">Diagnóstico (CID)</label>
+                    <div className="relative">
+                      <input
+                        value={cidSelecionado ? `${cidSelecionado.codigo} — ${cidSelecionado.descricao}` : cidQuery}
+                        onChange={e => handleCidChange(e.target.value)}
+                        placeholder="Digite o código ou nome da doença..."
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary pr-8"
+                      />
+                      {cidLoading && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">...</span>}
+                      {cidSelecionado && (
+                        <button onClick={() => { setCidSelecionado(null); setCidQuery(''); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500"><X size={14}/></button>
+                      )}
+                    </div>
+                    {cidSugestoes.length > 0 && !cidSelecionado && (
+                      <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                        {cidSugestoes.map(item => (
+                          <button
+                            key={item.codigo}
+                            onClick={() => { setCidSelecionado(item); setCidQuery(''); setCidSugestoes([]); }}
+                            className="w-full text-left px-4 py-2.5 text-sm hover:bg-brand-light/30 transition-colors flex gap-3"
+                          >
+                            <span className="font-bold text-brand-primary shrink-0">{item.codigo}</span>
+                            <span className="text-slate-700">{item.descricao}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Evoluçao */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">Evolução / Anotações Clínicas</label>
+                    <textarea
+                      rows={4}
+                      value={consultaHistorico}
+                      onChange={e => setConsultaHistorico(e.target.value)}
+                      placeholder="Descreva a evolução, exame físico, conduta..."
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary resize-none"
+                    />
+                  </div>
+
+                  {/* Alergias via Memed */}
+                  <div className="p-4 bg-red-50/60 border border-red-100 rounded-xl">
+                    <label className="block text-xs font-bold text-red-700 mb-2 flex items-center gap-1"><AlertTriangle size={13}/> Alergias registradas</label>
+                    <div className="relative">
+                      <input
+                        value={alergiaQuery}
+                        onChange={e => handleAlergiaChange(e.target.value)}
+                        placeholder="Buscar princípio ativo ou medicamento (via Memed)..."
+                        className="w-full border border-red-200 bg-white rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+                      />
+                      {alergiaSugestoes.length > 0 && (
+                        <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-36 overflow-y-auto">
+                          {alergiaSugestoes.map(item => (
+                            <button key={item.id} onClick={() => adicionarAlergia(item)} className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 flex items-center gap-2">
+                              <Pill size={13} className="text-red-400"/>{item.nome}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {alergiasSelecionadas.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {alergiasSelecionadas.map(a => (
+                          <span key={a.id} className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full">
+                            {a.nome}
+                            <button onClick={() => setAlergiasSelecionadas(prev => prev.filter(x => x.id !== a.id))} className="hover:text-red-900"><X size={11}/></button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Prescrição Memed */}
+                  <div className="p-4 bg-brand-light/30 border border-brand-primary/20 rounded-xl">
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="text-xs font-bold text-brand-dark flex items-center gap-2"><Pill size={14}/> Prescrição Digital (Memed)</label>
+                      {!memedToken && (
+                        <Btn size="sm" onClick={carregarMemed} disabled={memedLoading}>
+                          {memedLoading ? 'Carregando...' : 'Abrir Prescrição'}
+                        </Btn>
+                      )}
+                    </div>
+                    {memedErro && (
+                      <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                        ⚠️ {memedErro} — configure as chaves no backend/.env
+                      </div>
+                    )}
+                    {memedToken && (
+                      <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                        ✓ Memed conectado. O painel de prescrição foi aberto.
+                      </div>
+                    )}
+                    {!memedToken && !memedErro && !memedLoading && (
+                      <p className="text-xs text-slate-500">Clique em "Abrir Prescrição" para lançar o módulo de receituário digital da Memed.</p>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+                    <Btn variant="ghost" onClick={() => setPerfilTab('historico')}>Cancelar</Btn>
+                    <Btn icon={Save} onClick={salvarConsulta} disabled={consultaSalvando}>
+                      {consultaSalvando ? 'Salvando...' : 'Salvar Consulta'}
+                    </Btn>
+                  </div>
                 </div>
               )}
 
@@ -427,9 +666,9 @@ export function PacientesPage() {
               <Activity size={24} className="text-brand-primary" />
               <span className="font-bold text-sm text-slate-700">Odontograma</span>
             </button>
-            <button onClick={() => navigate('/dashboard/prontuario')} className="p-4 border border-gray-200 rounded-xl hover:border-brand-primary hover:bg-brand-light/20 flex flex-col items-center justify-center gap-2 transition-colors">
+            <button onClick={() => { setModalConsultaOpen(false); setPerfilTab('nova_consulta'); }} className="p-4 border border-gray-200 rounded-xl hover:border-brand-primary hover:bg-brand-light/20 flex flex-col items-center justify-center gap-2 transition-colors">
               <ClipboardList size={24} className="text-brand-primary" />
-              <span className="font-bold text-sm text-slate-700">Prontuário Médico</span>
+              <span className="font-bold text-sm text-slate-700">Consulta Direta (Perfil)</span>
             </button>
             <button onClick={() => setModalConsultaOpen(false)} className="p-4 border border-gray-200 rounded-xl hover:border-brand-primary hover:bg-brand-light/20 flex flex-col items-center justify-center gap-2 transition-colors">
               <FileSpreadsheet size={24} className="text-brand-primary" />
