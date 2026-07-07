@@ -290,7 +290,7 @@ export function OdontogramaPage() {
 
       {modalIntOpen && intAtual && (
         <Modal 
-          isOpen={modalIntOpen} 
+          open={modalIntOpen} 
           onClose={() => setModalIntOpen(false)} 
           title={`Intervenção — Dente #${denteSel}`}
         >

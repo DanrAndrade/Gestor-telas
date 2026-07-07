@@ -284,6 +284,12 @@ export function PacientesPage() {
               </SelectField>
             </div>
 
+            <h4 className="text-sm font-bold text-slate-700 border-b border-gray-100 pb-2 mt-6">Dados do Responsável</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <InputField label="Nome do Responsável" placeholder="Nome completo" />
+              <InputField label="CPF do Responsável" placeholder="000.000.000-00" />
+            </div>
+
             <h4 className="text-sm font-bold text-slate-700 border-b border-gray-100 pb-2 mt-6">Dados Complementares (Opcionais)</h4>
             <div className="grid grid-cols-2 gap-4">
               <InputField label="Gênero" placeholder="Ex: Não-binário" />
@@ -296,6 +302,10 @@ export function PacientesPage() {
             </div>
 
             <h4 className="text-sm font-bold text-slate-700 border-b border-gray-100 pb-2 mt-6">Endereço</h4>
+            <div className="flex gap-4 mb-4">
+              <InputField label="Data" placeholder="Data" />
+              <InputField label="Horário" placeholder="Horário" />
+            </div>
             <div className="grid grid-cols-3 gap-4">
               <InputField label="CEP" placeholder="00000-000" />
               <InputField label="Logradouro" placeholder="Rua, Avenida..." className="col-span-2" defaultValue={perfilAtivo ? 'Rua das Flores' : ''} />
