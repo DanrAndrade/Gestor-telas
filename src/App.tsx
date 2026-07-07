@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LoginPage } from './modules/auth/pages/LoginPage';
+import { ForgotPasswordPage } from './modules/auth/pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './modules/auth/pages/ResetPasswordPage';
 import { DashboardLayout } from './modules/dashboard/layouts/DashboardLayout';
 import { HomePage } from './modules/dashboard/pages/HomePage';
 import { PacientesPage } from './modules/dashboard/pages/PacientesPage';
@@ -34,6 +36,8 @@ function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<HomePage />} />

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { 
   Mail, Lock, ArrowRight, HeartPulse, Wallet, UserCheck, Eye, EyeOff 
 } from 'lucide-react';
@@ -222,8 +222,10 @@ export function LoginPage() {
                 </button>
               </form>
 
-              <div className="mt-8 pt-6 border-t border-slate-200/50">
-                 <p className="text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] leading-relaxed">Esqueceu a senha? <br /> Contate o administrador</p>
+              <div className="mt-8 pt-6 border-t border-slate-200/50 flex justify-center">
+                 <Link to="/forgot-password" className="text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] leading-relaxed hover:text-brand-primary transition-colors block">
+                   Esqueceu a senha? <br /> Clique aqui para recuperar
+                 </Link>
               </div>
             </GlassCard>
           </div>

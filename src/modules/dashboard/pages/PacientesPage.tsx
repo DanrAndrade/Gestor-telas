@@ -3,8 +3,8 @@ import { Users, Search, UserPlus, Edit, FileText, Trash2, ArrowLeft, Calendar, F
 import { PageHeader, Card, Btn, Modal, InputField, SelectField, Badge } from '../../../components/ui/shared';
 import { useNavigate } from 'react-router-dom';
 import { cidApi, memedApi, consultasApi, pacientesApi, type CIDItem, type APIPaciente } from '../../../services/api';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 
 type Paciente = {
   id: string;
@@ -336,7 +336,33 @@ export function PacientesPage() {
             
             <div className="mt-4 pt-4 border-t border-gray-200">
                <h4 className="text-sm font-bold text-slate-700 mb-2 text-red-600 flex items-center gap-2"><Activity size={16} /> Alergias</h4>
-               <InputField label="Alergias" placeholder="Ex: Penicilina, Iodo, Dipirona..." />
+               <div className="relative">
+                 <input
+                   value={alergiaQuery}
+                   onChange={e => handleAlergiaChange(e.target.value)}
+                   placeholder="Buscar medicamento (API Memed)..."
+                   className="w-full border border-gray-200 bg-white rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+                 />
+                 {alergiaSugestoes.length > 0 && (
+                   <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-36 overflow-y-auto">
+                     {alergiaSugestoes.map(item => (
+                       <button type="button" key={item.id} onClick={() => adicionarAlergia(item)} className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 flex items-center gap-2">
+                         <Pill size={13} className="text-red-400"/>{item.nome}
+                       </button>
+                     ))}
+                   </div>
+                 )}
+               </div>
+               {alergiasSelecionadas.length > 0 && (
+                 <div className="flex flex-wrap gap-2 mt-2">
+                   {alergiasSelecionadas.map(a => (
+                     <span key={a.id} className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full">
+                       {a.nome}
+                       <button type="button" onClick={() => setAlergiasSelecionadas(prev => prev.filter(x => x.id !== a.id))} className="hover:text-red-900"><X size={11}/></button>
+                     </span>
+                   ))}
+                 </div>
+               )}
             </div>
 
             <div className="mt-4 pt-4 border-t border-gray-200">
