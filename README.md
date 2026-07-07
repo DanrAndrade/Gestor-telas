@@ -195,6 +195,36 @@ useEffect(() => {
 
 ---
 
+## 🔒 Diretrizes de Segurança
+
+Para os desenvolvedores que continuarão o projeto, é **crucial** implementar as seguintes medidas de segurança no código antes de levá-lo para produção:
+
+### 1. Prevenção contra Brute Force (Rate Limit)
+**O problema:** Falta de limite de tentativas em áreas como login, MFA e recuperação de senha, permitindo ataques de força bruta.
+**A solução:** Aplicar limitação por IP, limitação por conta, política de lockout (bloquear a conta após X tentativas erradas) e utilizar um WAF (Web Application Firewall).
+
+### 2. Configuração de CORS
+**O problema:** Não configurar corretamente o Cross-Origin Resource Sharing (CORS), o que é uma falha crítica comum.
+**A solução:** Configurar o CORS no backend criando uma *allowlist* (lista de permissões) contendo apenas os domínios de origem que realmente devem ter acesso à API.
+
+### 3. Exposição de PII e Dados Sensíveis
+**O problema:** A API retornar dados sensíveis do usuário (Personally Identifiable Information) sem necessidade (ex: devolver o hash da senha).
+**A solução:** Enviar para o front-end apenas os dados que são estritamente necessários para a tela e aplicar criptografia para dados em repouso/trânsito quando for preciso.
+
+### 4. Gerenciamento Seguro de Sessão (JWT)
+**O problema:** Passar o token de sessão na URL (via GET) e fazer o logout apagando o token apenas no client (local storage) sem invalidá-lo no servidor.
+**A solução:** Trafegar dados sensíveis e tokens via requisições POST/PUT (nos Headers, ou cookies HTTPOnly) e garantir que o back-end possua uma *blocklist* ou mecanismo para invalidar a sessão do JWT durante o logout.
+
+### 5. Enumeração de Usuários
+**O problema:** O sistema dizer explicitamente "e-mail não cadastrado" no login ou recuperação de senha. Isso permite que um atacante teste milhares de e-mails para descobrir quem tem conta no sistema.
+**A solução:** Trocar o erro específico por uma mensagem genérica, como *"E-mail ou senha inválidos"* (no login) e *"Se o e-mail existir, um link foi enviado"* (na recuperação).
+
+### 6. Injeção de SQL (SQL Injection)
+**O problema:** Escrever consultas de banco de dados concatenando strings puras, o que abre brecha para atacantes manipularem a query e roubarem ou destruírem dados.
+**A solução:** Utilizar sempre as parametrizações seguras do ORM (SQLAlchemy) para interagir com o banco de dados.
+
+---
+
 ## 📦 Tecnologias
 
 **Frontend:** React 18, TypeScript, Vite, Tailwind CSS, React Router  
